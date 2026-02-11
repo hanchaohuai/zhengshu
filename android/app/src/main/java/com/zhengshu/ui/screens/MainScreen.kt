@@ -98,3 +98,235 @@ fun getTabIcon(tab: MainTab) = when (tab) {
 @Composable
 fun HomeScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = when (uiState.currentRiskLevel) {
+                    RiskLevel.HIGH -> MaterialTheme.colorScheme.error
+                    RiskLevel.MEDIUM -> MaterialTheme.colorScheme.tertiary
+                    RiskLevel.LOW -> MaterialTheme.colorScheme.secondary
+                    RiskLevel.NONE -> MaterialTheme.colorScheme.primary
+                }
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "当前风险等级",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = uiState.currentRiskLevel.displayName,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
+        
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "风险识别统计",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "今日检测次数: ${uiState.detectionCount}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "高风险预警: ${uiState.highRiskCount}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+        
+        Button(
+            onClick = { viewModel.startDetection() },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !uiState.isDetecting
+        ) {
+            Text(if (uiState.isDetecting) "检测中..." else "开始检测")
+        }
+    }
+}
+
+@Composable
+fun EvidenceScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "证据管理",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "暂无证据",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun LegalScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "法律咨询",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "法律援助热线",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "12348",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun JudiciaryScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "司法存证",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "区块链存证",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "将证据上链存储，确保不可篡改",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HardwareScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "硬件管理",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "USB设备监控",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "监控USB设备连接，防止数据泄露",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "设置",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "风险检测设置",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "检测灵敏度: 高",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "自动存证: 开启",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
