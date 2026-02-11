@@ -1,17 +1,22 @@
 package com.zhengshu.utils
 
 import android.content.Context
+import android.os.IBinder
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.zhengshu.data.model.EvidencePackage
 import java.io.File
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.IvParameterSpec
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeDefaults
 
 class EncryptionManager(private val context: Context) {
 
@@ -82,8 +87,8 @@ class EncryptionManager(private val context: Context) {
     fun encryptFile(inputFile: File, outputFile: File) {
         try {
             val encryptedFile = EncryptedFile.Builder(
-                outputFile,
                 context,
+                outputFile,
                 masterKey,
                 EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
             ).build()
@@ -103,8 +108,8 @@ class EncryptionManager(private val context: Context) {
     fun decryptFile(inputFile: File, outputFile: File) {
         try {
             val encryptedFile = EncryptedFile.Builder(
-                inputFile,
                 context,
+                inputFile,
                 masterKey,
                 EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
             ).build()
@@ -121,85 +126,36 @@ class EncryptionManager(private val context: Context) {
         }
     }
 
-    fun encryptByteArray(data: ByteArray): ByteArray {
-        try {
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(Cipher.ENCRYPT_MODE, getSecretKey())
-            
-            val iv = cipher.iv
-            val encryptedBytes = cipher.doFinal(data)
-            
-            return iv + encryptedBytes
-        } catch (e: Exception) {
-            throw EncryptionException("Failed to encrypt byte array", e)
-        }
+    fun encryptEvidence(evidencePackage: EvidencePackage): String {
+        return Json {
+            encodeDefaults = true
+        }.encodeToString(evidencePackage)
     }
 
-    fun decryptByteArray(data: ByteArray): ByteArray {
-        try {
-            val iv = data.sliceArray(0..11)
-            val encryptedBytes = data.sliceArray(12 until data.size)
-            
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(Cipher.DECRYPT_MODE, getSecretKey(), IvParameterSpec(iv))
-            
-            return cipher.doFinal(encryptedBytes)
-        } catch (e: Exception) {
-            throw EncryptionException("Failed to decrypt byte array", e)
-        }
-    }
-
-    fun saveEncryptedPreference(key: String, value: String) {
+    fun saveSecurePreference(key: String, value: String) {
         encryptedSharedPreferences.edit().putString(key, value).apply()
     }
 
-    fun getEncryptedPreference(key: String, defaultValue: String = ""): String {
-        return encryptedSharedPreferences.getString(key, defaultValue) ?: defaultValue
-    }
-
-    fun removeEncryptedPreference(key: String) {
-        encryptedSharedPreferences.edit().remove(key).apply()
+    fun getSecurePreference(key: String): String? {
+        return encryptedSharedPreferences.getString(key, null)
     }
 
     private fun getSecretKey(): SecretKey {
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
         keyStore.load(null)
         
-        val key = keyStore.getKey(KEY_ALIAS, null) as? SecretKey
-        
-        if (key != null) {
-            return key
-        }
-        
-        val keyGenerator = KeyGenerator.getInstance(
-            KeyProperties.KEY_ALGORITHM_AES,
-            ANDROID_KEYSTORE
-        )
-        
-        keyGenerator.init(
-            KeyGenParameterSpec.Builder(
-                KEY_ALIAS,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-            )
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setKeySize(256)
-                .build()
-        )
-        
+        val secretKeyEntry = keyStore.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry
+        return secretKeyEntry?.secretKey ?: generateSecretKey()
+    }
+
+    private fun generateSecretKey(): SecretKey {
+        val keyGenerator = KeyGenerator.getInstance(TRANSFORMATION.substringBeforeSlash())
+        keyGenerator.init(256)
         return keyGenerator.generateKey()
     }
 
-    fun generateRandomKey(): ByteArray {
-        val keyGenerator = KeyGenerator.getInstance("AES")
-        keyGenerator.init(256)
-        return keyGenerator.generateKey().encoded
-    }
-
-    fun generateIV(): ByteArray {
-        val iv = ByteArray(12)
-        java.security.SecureRandom().nextBytes(iv)
-        return iv
+    private fun String.substringBeforeSlash(): String {
+        return this.substringBefore('/')
     }
 }
 

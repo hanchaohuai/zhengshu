@@ -1,5 +1,8 @@
 package com.zhengshu.data.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class EvidencePackage(
     val id: String,
     val title: String,
@@ -13,6 +16,7 @@ data class EvidencePackage(
     val blockchainAddress: String? = null
 )
 
+@Serializable
 data class EnvironmentData(
     val deviceModel: String,
     val osVersion: String,

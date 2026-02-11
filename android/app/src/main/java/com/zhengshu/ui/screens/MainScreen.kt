@@ -6,8 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Usb
@@ -88,7 +88,7 @@ fun MainScreen(viewModel: MainViewModel) {
 @Composable
 fun getTabIcon(tab: MainTab) = when (tab) {
     MainTab.Home -> Icons.Default.Home
-    MainTab.Evidence -> Icons.Default.Storage
+    MainTab.Evidence -> Icons.Default.Folder
     MainTab.Legal -> Icons.Default.Description
     MainTab.Judiciary -> Icons.Default.Gavel
     MainTab.Hardware -> Icons.Default.Usb
