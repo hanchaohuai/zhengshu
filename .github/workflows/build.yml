@@ -24,9 +24,12 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x android/gradlew
       
-    - name: Build with Gradle
+    - name: Build with Gradle 8.2
       working-directory: ./android
       run: |
+        curl -s "https://get.sdkman.io" | bash
+        source "$HOME/.sdkman/bin/sdkman-init.sh"
+        sdk install gradle 8.2
         gradle wrapper --gradle-version 8.2
         ./gradlew assembleDebug --stacktrace --no-daemon --no-build-cache
         
