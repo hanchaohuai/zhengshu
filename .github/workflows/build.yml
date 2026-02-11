@@ -21,6 +21,12 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         
+    - name: Download Gradle Wrapper
+      working-directory: ./android
+      run: |
+        mkdir -p gradle/wrapper
+        curl -L -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradle/wrapper/gradle-wrapper.jar
+        
     - name: Build with Gradle
       working-directory: ./android
       run: |
