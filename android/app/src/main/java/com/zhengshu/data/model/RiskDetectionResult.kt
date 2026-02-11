@@ -1,5 +1,7 @@
 package com.zhengshu.data.model
 
+import java.io.Serializable
+
 data class RiskDetectionResult(
     val riskLevel: RiskLevel,
     val riskReason: String,
@@ -7,7 +9,7 @@ data class RiskDetectionResult(
     val detectedKeywords: List<String>,
     val detectedBehaviors: List<String>,
     val timestamp: Long = System.currentTimeMillis()
-)
+) : Serializable
 
 enum class RiskLevel(val displayName: String, val colorRes: Int) {
     HIGH("高风险", android.R.color.holo_red_dark),

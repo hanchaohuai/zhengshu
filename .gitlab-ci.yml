@@ -1,0 +1,35 @@
+stages:
+  - build
+
+variables:
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+
+cache:
+  paths:
+    - .gradle/wrapper
+    - .gradle/caches
+
+build_apk:
+  stage: build
+  image: openjdk:17-jdk
+  before_script:
+    - apt-get --quiet update --yes
+    - apt-get --quiet install --yes wget unzip
+    - export ANDROID_HOME=$PWD/android-sdk
+    - export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+    - wget --quiet --output-document=android-sdk.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+    - unzip -q android-sdk.zip -d $ANDROID_HOME
+    - mkdir -p $ANDROID_HOME/cmdline-tools/latest
+    - mv $ANDROID_HOME/cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest/
+    - yes | sdkmanager --licenses || true
+    - sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+  script:
+    - cd android
+    - chmod +x gradlew
+    - ./gradlew assembleDebug --stacktrace
+  artifacts:
+    paths:
+      - android/app/build/outputs/apk/debug/app-debug.apk
+    expire_in: 30 days
+  only:
+    - main
