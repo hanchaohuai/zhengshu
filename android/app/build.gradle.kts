@@ -57,6 +57,17 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    configurations.all {
+        resolutionStrategy {
+            force("org.jetbrains.kotlin:kotlin-stdlib:1.7.22")
+            force("org.jetbrains.kotlin:kotlin-stdlib-common:1.7.22")
+            force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.7.22")
+            force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.7.22")
+            force("com.squareup.okio:okio:3.4.0")
+            force("com.squareup.okio:okio-jvm:3.4.0")
+        }
+    }
 }
 
 dependencies {
