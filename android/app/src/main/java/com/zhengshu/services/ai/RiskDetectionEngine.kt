@@ -1,0 +1,237 @@
+package com.zhengshu.services.ai
+
+import android.content.Context
+import com.zhengshu.data.model.BehaviorData
+import com.zhengshu.data.model.BehaviorType
+import com.zhengshu.data.model.ChatMessage
+import com.zhengshu.data.model.RiskDetectionResult
+import com.zhengshu.data.model.RiskLevel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+class RiskDetectionEngine(private val context: Context) {
+    
+    private val keywordLibraryManager = KeywordLibraryManager(context)
+    private val behaviorRuleEngine = BehaviorRuleEngine()
+    
+    suspend fun analyzeText(text: String): RiskDetectionResult = withContext(Dispatchers.Default) {
+        val keywordMatches = keywordLibraryManager.searchKeywords(text)
+        val highestRiskLevel = keywordLibraryManager.getHighestRiskLevel(text)
+        val riskReason = keywordLibraryManager.getRiskReason(text)
+        
+        val detectedKeywords = keywordMatches.map { it.keyword }
+        val confidence = calculateConfidence(keywordMatches)
+        
+        RiskDetectionResult(
+            riskLevel = highestRiskLevel,
+            riskReason = riskReason,
+            confidence = confidence,
+            detectedKeywords = detectedKeywords,
+            detectedBehaviors = emptyList()
+        )
+    }
+    
+    suspend fun analyzeChatMessage(message: ChatMessage): RiskDetectionResult = withContext(Dispatchers.Default) {
+        val textResult = analyzeText(message.content)
+        
+        val platformRisk = analyzePlatform(message.platform)
+        val senderRisk = analyzeSender(message.sender)
+        
+        val combinedRiskLevel = combineRiskLevels(
+            textResult.riskLevel,
+            platformRisk,
+            senderRisk
+        )
+        
+        val combinedReason = buildString {
+            if (textResult.riskReason.isNotEmpty()) {
+                append(textResult.riskReason)
+            }
+            if (platformRisk != RiskLevel.NONE) {
+                if (isNotEmpty()) append("；")
+                append("平台来源风险：${message.platform}")
+            }
+            if (senderRisk != RiskLevel.NONE) {
+                if (isNotEmpty()) append("；")
+                append("发送者风险：${message.sender}")
+            }
+        }
+        
+        RiskDetectionResult(
+            riskLevel = combinedRiskLevel,
+            riskReason = combinedReason,
+            confidence = textResult.confidence,
+            detectedKeywords = textResult.detectedKeywords,
+            detectedBehaviors = emptyList()
+        )
+    }
+    
+    suspend fun analyzeBehavior(behavior: BehaviorData): RiskDetectionResult = withContext(Dispatchers.Default) {
+        val ruleResults = behaviorRuleEngine.evaluate(behavior)
+        
+        val highestRiskLevel = ruleResults.maxByOrNull { it.riskLevel }?.riskLevel ?: RiskLevel.NONE
+        val riskReason = ruleResults
+            .filter { it.riskLevel != RiskLevel.NONE }
+            .joinToString("；") { it.reason }
+        
+        val detectedBehaviors = ruleResults.map { it.behaviorType.name }
+        
+        RiskDetectionResult(
+            riskLevel = highestRiskLevel,
+            riskReason = riskReason,
+            confidence = 0.7f,
+            detectedKeywords = emptyList(),
+            detectedBehaviors = detectedBehaviors
+        )
+    }
+    
+    suspend fun analyzeComprehensive(
+        text: String,
+        chatMessages: List<ChatMessage>,
+        behaviors: List<BehaviorData>
+    ): RiskDetectionResult = withContext(Dispatchers.Default) {
+        val textResult = analyzeText(text)
+        val chatResults = chatMessages.map { analyzeChatMessage(it) }
+        val behaviorResults = behaviors.map { analyzeBehavior(it) }
+        
+        val allResults = listOf(textResult) + chatResults + behaviorResults
+        
+        val highestRiskLevel = allResults.maxByOrNull { it.riskLevel }?.riskLevel ?: RiskLevel.NONE
+        val combinedReason = allResults
+            .filter { it.riskReason.isNotEmpty() }
+            .joinToString("；") { it.riskReason }
+        
+        val allKeywords = allResults.flatMap { it.detectedKeywords }.distinct()
+        val allBehaviors = allResults.flatMap { it.detectedBehaviors }.distinct()
+        
+        val avgConfidence = allResults.map { it.confidence }.average().toFloat()
+        
+        RiskDetectionResult(
+            riskLevel = highestRiskLevel,
+            riskReason = combinedReason,
+            confidence = avgConfidence,
+            detectedKeywords = allKeywords,
+            detectedBehaviors = allBehaviors
+        )
+    }
+    
+    private fun analyzePlatform(platform: String): RiskLevel {
+        val riskyPlatforms = listOf(
+            "unknown",
+            "temp",
+            "test"
+        )
+        
+        return if (riskyPlatforms.any { platform.contains(it, ignoreCase = true) }) {
+            RiskLevel.MEDIUM
+        } else {
+            RiskLevel.NONE
+        }
+    }
+    
+    private fun analyzeSender(sender: String): RiskLevel {
+        val suspiciousPatterns = listOf(
+            Regex("\\d{11}"),
+            Regex("客服"),
+            Regex("官方"),
+            Regex("客服\\d+"),
+            Regex("官方\\d+"),
+            Regex("客服\\d+"),
+            Regex("客服\\d+")
+        )
+        
+        return if (suspiciousPatterns.any { it.containsMatchIn(sender) }) {
+            RiskLevel.MEDIUM
+        } else {
+            RiskLevel.NONE
+        }
+    }
+    
+    private fun combineRiskLevels(vararg levels: RiskLevel): RiskLevel {
+        return levels.maxByOrNull { it.ordinal } ?: RiskLevel.NONE
+    }
+    
+    private fun calculateConfidence(matches: List<KeywordMatch>): Float {
+        if (matches.isEmpty()) return 0f
+        
+        val highRiskCount = matches.count { it.riskLevel == RiskLevel.HIGH }
+        val mediumRiskCount = matches.count { it.riskLevel == RiskLevel.MEDIUM }
+        val lowRiskCount = matches.count { it.riskLevel == RiskLevel.LOW }
+        
+        val total = matches.size
+        val weightedScore = (highRiskCount * 1.0f + mediumRiskCount * 0.6f + lowRiskCount * 0.3f) / total
+        
+        return weightedScore.coerceIn(0f, 1f)
+    }
+}
+
+data class BehaviorRuleResult(
+    val riskLevel: RiskLevel,
+    val reason: String,
+    val behaviorType: BehaviorType
+)
+
+class BehaviorRuleEngine {
+    
+    private val rules = listOf(
+        BehaviorRule(
+            name = "高频点击",
+            condition = { behavior -> 
+                behavior.type == BehaviorType.CLICK && behavior.clickFrequency >= 10 
+            },
+            riskLevel = RiskLevel.HIGH,
+            reason = "检测到异常高频点击行为"
+        ),
+        BehaviorRule(
+            name = "快速输入",
+            condition = { behavior -> 
+                behavior.type == BehaviorType.INPUT && behavior.inputSpeed > 500 
+            },
+            riskLevel = RiskLevel.MEDIUM,
+            reason = "检测到异常快速输入行为"
+        ),
+        BehaviorRule(
+            name = "异常导航",
+            condition = { behavior -> 
+                behavior.type == BehaviorType.NAVIGATION && 
+                behavior.packageName.contains("unknown", ignoreCase = true)
+            },
+            riskLevel = RiskLevel.MEDIUM,
+            reason = "检测到来自未知来源的导航行为"
+        ),
+        BehaviorRule(
+            name = "可疑应用操作",
+            condition = { behavior ->
+                val suspiciousApps = listOf(
+                    "com.unknown",
+                    "com.temp",
+                    "com.test"
+                )
+                suspiciousApps.any { behavior.packageName.contains(it, ignoreCase = true) }
+            },
+            riskLevel = RiskLevel.HIGH,
+            reason = "检测到来自可疑应用的操作"
+        )
+    )
+    
+    fun evaluate(behavior: BehaviorData): List<BehaviorRuleResult> {
+        return rules.mapNotNull { rule ->
+            if (rule.condition(behavior)) {
+                BehaviorRuleResult(
+                    riskLevel = rule.riskLevel,
+                    reason = rule.reason,
+                    behaviorType = behavior.type
+                )
+            } else {
+                null
+            }
+        }
+    }
+}
+
+data class BehaviorRule(
+    val name: String,
+    val condition: (BehaviorData) -> Boolean,
+    val riskLevel: RiskLevel,
+    val reason: String
+)

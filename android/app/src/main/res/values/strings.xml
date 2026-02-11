@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">证枢</string>
+    <string name="risk_detection">风险识别</string>
+    <string name="evidence_management">存证管理</string>
+    <string name="legal_documents">法律文书</string>
+    <string name="judiciary_platform">司法平台</string>
+    <string name="hardware_sync">硬件同步</string>
+    <string name="settings">设置</string>
+    <string name="high_risk">高风险</string>
+    <string name="medium_risk">中风险</string>
+    <string name="low_risk">低风险</string>
+    <string name="risk_warning_title">风险预警</string>
+    <string name="risk_warning_message">检测到可能的诈骗风险</string>
+    <string name="start_evidence">启动存证</string>
+    <string name="ignore">忽略</string>
+    <string name="mark_false_positive">标记误报</string>
+    <string name="evidence_saved">证据已保存</string>
+    <string name="evidence_failed">存证失败</string>
+    <string name="screen_recording_started">录屏已开始</string>
+    <string name="screen_recording_stopped">录屏已停止</string>
+    <string name="permission_required">需要权限</string>
+    <string name="grant_permission">授予权限</string>
+    <string name="cancel">取消</string>
+    <string name="confirm">确认</string>
+    <string name="delete">删除</string>
+    <string name="export">导出</string>
+    <string name="preview">预览</string>
+    <string name="upload">上传</string>
+    <string name="sync">同步</string>
+    <string name="connected">已连接</string>
+    <string name="disconnected">未连接</string>
+    <string name="storage_used">已用存储</string>
+    <string name="evidence_count">证据数量</string>
+</resources>
