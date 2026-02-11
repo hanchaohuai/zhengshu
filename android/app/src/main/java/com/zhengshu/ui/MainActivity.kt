@@ -15,13 +15,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhengshu.ui.screens.MainScreen
 import com.zhengshu.ui.theme.ZhengShuTheme
 import com.zhengshu.ui.viewmodel.MainViewModel
 
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: MainViewModel by viewModels()
+    private val viewModel: MainViewModel by viewModels {
+        ViewModelProvider.AndroidViewModelFactory(application)
+    }
 
     private val permissions = mutableListOf(
         Manifest.permission.INTERNET,
