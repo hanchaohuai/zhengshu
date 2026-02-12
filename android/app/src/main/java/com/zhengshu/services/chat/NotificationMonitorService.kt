@@ -26,7 +26,8 @@ class NotificationMonitorService : NotificationListenerService() {
         )
     }
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
+    private val serviceJob = Job()
+    private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     
     override fun onCreate() {
         super.onCreate()
@@ -100,6 +101,6 @@ class NotificationMonitorService : NotificationListenerService() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "NotificationMonitorService destroyed")
-        serviceScope.cancel()
+        serviceJob.cancel()
     }
 }
