@@ -147,7 +147,7 @@ class ChatMonitorService : AccessibilityService() {
     }
     
     private fun isSupportedPackage(packageName: String): Boolean {
-        return true
+        return packageName == "com.tencent.mm" || packageName == "com.tencent.mobileqq"
     }
     
     private fun isLikelyNewMessage(text: String): Boolean {
