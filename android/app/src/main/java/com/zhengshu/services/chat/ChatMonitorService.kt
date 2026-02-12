@@ -73,6 +73,7 @@ class ChatMonitorService : AccessibilityService() {
             Log.d(TAG, "Window state changed for package: $packageName")
             val nodeInfo = rootInActiveWindow
             if (nodeInfo != null) {
+                Log.d(TAG, "rootInActiveWindow is not null")
                 val textContent = extractTextFromNode(nodeInfo)
                 Log.d(TAG, "Window content: ${textContent.take(100)}")
                 
@@ -84,6 +85,8 @@ class ChatMonitorService : AccessibilityService() {
                         Log.d(TAG, "Added to message buffer")
                     }
                 }
+            } else {
+                Log.d(TAG, "rootInActiveWindow is null")
             }
             return
         }
@@ -102,6 +105,8 @@ class ChatMonitorService : AccessibilityService() {
                         Log.d(TAG, "Added to message buffer")
                     }
                 }
+            } else {
+                Log.d(TAG, "event.source and rootInActiveWindow are both null")
             }
         }
     }
@@ -117,14 +122,14 @@ class ChatMonitorService : AccessibilityService() {
     private fun traverseNode(node: AccessibilityNodeInfo, text: StringBuilder) {
         if (node.text != null && node.text.isNotEmpty()) {
             val nodeText = node.text.toString()
-            if (nodeText.length > 2) {
+            if (nodeText.length > 1) {
                 text.append(nodeText).append(" ")
             }
         }
         
         if (node.contentDescription != null && node.contentDescription.isNotEmpty()) {
             val descText = node.contentDescription.toString()
-            if (descText.length > 2) {
+            if (descText.length > 1) {
                 text.append(descText).append(" ")
             }
         }
@@ -132,7 +137,11 @@ class ChatMonitorService : AccessibilityService() {
         for (i in 0 until node.childCount) {
             val child = node.getChild(i)
             if (child != null) {
-                traverseNode(child, text)
+                try {
+                    traverseNode(child, text)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error traversing child node: ${e.message}")
+                }
             }
         }
     }
@@ -142,7 +151,7 @@ class ChatMonitorService : AccessibilityService() {
     }
     
     private fun isLikelyNewMessage(text: String): Boolean {
-        if (text.length < 5) {
+        if (text.length < 3) {
             Log.d(TAG, "Text too short: ${text.length}")
             return false
         }
@@ -164,12 +173,41 @@ class ChatMonitorService : AccessibilityService() {
             "中奖",
             "退款",
             "兼职",
-            "刷单"
+            "刷单",
+            "你好",
+            "在吗",
+            "请",
+            "帮",
+            "可以",
+            "需要",
+            "钱",
+            "元",
+            "¥",
+            "￥",
+            "￥",
+            "银行",
+            "卡",
+            "账号",
+            "密码",
+            "链接",
+            "点击",
+            "下载",
+            "安装"
         )
         
         val hasIndicator = messageIndicators.any { text.contains(it) }
         Log.d(TAG, "isLikelyNewMessage: hasIndicator=$hasIndicator, textLength=${text.length}")
-        return hasIndicator
+        
+        if (hasIndicator) {
+            return true
+        }
+        
+        if (text.length > 10) {
+            Log.d(TAG, "Text is long enough (${text.length}), treating as potential message")
+            return true
+        }
+        
+        return false
     }
     
     private fun analyzeBufferedMessages() {
