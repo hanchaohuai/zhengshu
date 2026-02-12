@@ -1,7 +1,5 @@
 package com.zhengshu.services.chat
 
-import android.accessibilityservice.AccessibilityEvent
-import android.accessibilityservice.AccessibilityNodeInfo
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.os.Build
@@ -12,6 +10,7 @@ import com.zhengshu.services.ai.DataCollector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -49,6 +48,10 @@ class ChatMonitorService : AccessibilityService() {
                 analyzeBufferedMessages()
             }
         }
+    }
+    
+    override fun onInterrupt() {
+        
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
@@ -116,7 +119,9 @@ class ChatMonitorService : AccessibilityService() {
             val chatMessage = createChatMessage(bufferedText)
             messageHistory.add(chatMessage)
             
-            dataCollector?.collectChatMessage(chatMessage)
+            serviceScope.launch {
+                dataCollector?.collectChatMessage(chatMessage)
+            }
             
             messageBuffer.clear()
         }

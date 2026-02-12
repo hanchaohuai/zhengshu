@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.unit.dp
 import com.zhengshu.data.model.ChatMessage
 import com.zhengshu.data.model.RiskLevel
@@ -80,6 +81,7 @@ fun ChatRiskScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterChips(
     selectedFilter: RiskLevel?,
