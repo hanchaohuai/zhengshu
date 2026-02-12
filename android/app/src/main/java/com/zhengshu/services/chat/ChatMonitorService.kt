@@ -35,6 +35,7 @@ class ChatMonitorService : AccessibilityService() {
     private var currentChatPackage: String? = null
     private var lastMessageContent: String = ""
     private var messageBuffer = StringBuilder()
+    private var lastWindowContent: String = ""
     
     private val messageHistory = mutableListOf<ChatMessage>()
     
@@ -58,13 +59,7 @@ class ChatMonitorService : AccessibilityService() {
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        Log.d(TAG, "Received accessibility event: ${event.eventType}, package: ${event.packageName}, source: ${event.source != null}")
-        
-        if (event.eventType != AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED &&
-            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
-            event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            return
-        }
+        Log.d(TAG, "Received accessibility event: ${event.eventType}, package: ${event.packageName}")
         
         val packageName = event.packageName?.toString() ?: return
         if (!isSupportedPackage(packageName)) {
@@ -73,24 +68,40 @@ class ChatMonitorService : AccessibilityService() {
         }
         
         currentChatPackage = packageName
-        Log.d(TAG, "Processing event for package: $packageName, eventType: ${event.eventType}")
         
-        val nodeInfo = event.source
-        if (nodeInfo == null) {
-            Log.d(TAG, "event.source is null")
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            Log.d(TAG, "Window state changed for package: $packageName")
+            val nodeInfo = rootInActiveWindow
+            if (nodeInfo != null) {
+                val textContent = extractTextFromNode(nodeInfo)
+                Log.d(TAG, "Window content: ${textContent.take(100)}")
+                
+                if (textContent.isNotEmpty() && textContent != lastWindowContent) {
+                    lastWindowContent = textContent
+                    
+                    if (isLikelyNewMessage(textContent)) {
+                        messageBuffer.append(textContent).append("\n")
+                        Log.d(TAG, "Added to message buffer")
+                    }
+                }
+            }
             return
         }
         
-        val textContent = extractTextFromNode(nodeInfo)
-        
-        Log.d(TAG, "Extracted text content: $textContent")
-        
-        if (textContent.isNotEmpty() && textContent != lastMessageContent) {
-            lastMessageContent = textContent
-            
-            if (isLikelyNewMessage(textContent)) {
-                messageBuffer.append(textContent).append("\n")
-                Log.d(TAG, "Added to message buffer")
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            val nodeInfo = event.source ?: rootInActiveWindow
+            if (nodeInfo != null) {
+                val textContent = extractTextFromNode(nodeInfo)
+                Log.d(TAG, "Content changed: ${textContent.take(50)}")
+                
+                if (textContent.isNotEmpty() && textContent != lastMessageContent) {
+                    lastMessageContent = textContent
+                    
+                    if (isLikelyNewMessage(textContent)) {
+                        messageBuffer.append(textContent).append("\n")
+                        Log.d(TAG, "Added to message buffer")
+                    }
+                }
             }
         }
     }
