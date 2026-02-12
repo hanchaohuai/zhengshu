@@ -147,7 +147,7 @@ class ChatMonitorService : AccessibilityService() {
     }
     
     private fun isSupportedPackage(packageName: String): Boolean {
-        return supportedPackages.any { packageName.contains(it) }
+        return true
     }
     
     private fun isLikelyNewMessage(text: String): Boolean {
