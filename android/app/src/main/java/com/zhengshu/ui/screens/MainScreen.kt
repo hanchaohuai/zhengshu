@@ -10,6 +10,8 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -65,6 +67,7 @@ fun MainScreen(viewModel: MainViewModel) {
         ) {
             when (uiState.selectedTab) {
                 MainTab.Home -> HomeScreen(viewModel)
+                MainTab.ChatRisk -> ChatRiskPlaceholder()
                 MainTab.Evidence -> EvidenceScreen()
                 MainTab.Legal -> LegalScreen()
                 MainTab.Judiciary -> JudiciaryScreen()
@@ -147,6 +150,7 @@ fun RiskAlertDialog(
 @Composable
 fun getTabIcon(tab: MainTab) = when (tab) {
     MainTab.Home -> Icons.Default.Home
+    MainTab.ChatRisk -> Icons.Default.Warning
     MainTab.Evidence -> Icons.Default.Folder
     MainTab.Legal -> Icons.Default.Description
     MainTab.Judiciary -> Icons.Default.Info
@@ -247,6 +251,70 @@ fun EvidenceScreen() {
                 Text(
                     text = "暂无证据",
                     style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ChatRiskPlaceholder() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "聊天风险监控",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "功能说明",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "聊天风险监控功能可以实时监控您的聊天消息，检测潜在的诈骗风险。",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "支持的平台：",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "• 微信\n• QQ\n• 企业微信\n• 钉钉",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "使用提示",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "1. 在系统设置中开启无障碍服务\n2. 选择证枢应用\n3. 授权聊天监控权限\n4. 返回此页面查看风险消息",
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
         }

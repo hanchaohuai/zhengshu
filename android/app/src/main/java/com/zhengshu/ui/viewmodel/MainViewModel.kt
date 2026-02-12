@@ -112,6 +112,7 @@ data class RiskAlertState(
 
 enum class MainTab(val displayName: String) {
     Home("首页"),
+    ChatRisk("聊天风险"),
     Evidence("存证"),
     Legal("文书"),
     Judiciary("司法"),

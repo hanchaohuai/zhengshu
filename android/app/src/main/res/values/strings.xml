@@ -32,4 +32,11 @@
     <string name="disconnected">未连接</string>
     <string name="storage_used">已用存储</string>
     <string name="evidence_count">证据数量</string>
+    <string name="chat_monitor_service_description">聊天监控服务 - 监控聊天消息以检测诈骗风险</string>
+    <string name="enable_chat_monitor">启用聊天监控</string>
+    <string name="chat_monitor_enabled">聊天监控已启用</string>
+    <string name="chat_monitor_disabled">聊天监控已禁用</string>
+    <string name="chat_history">聊天记录</string>
+    <string name="no_chat_messages">暂无聊天记录</string>
+    <string name="risk_detected_in_chat">在聊天中检测到风险</string>
 </resources>
