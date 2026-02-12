@@ -2,7 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.7.22"
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.8.22"
 }
 
 android {
@@ -53,7 +53,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.3.2"
+        kotlinCompilerExtensionVersion = "1.4.6"
     }
 
     packagingOptions {
@@ -64,10 +64,10 @@ android {
 
     configurations.all {
         resolutionStrategy {
-            force("org.jetbrains.kotlin:kotlin-stdlib:1.7.22")
-            force("org.jetbrains.kotlin:kotlin-stdlib-common:1.7.22")
-            force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.7.22")
-            force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.7.22")
+            force("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
+            force("org.jetbrains.kotlin:kotlin-stdlib-common:1.8.22")
+            force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22")
+            force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22")
             force("com.squareup.okio:okio:3.4.0")
             force("com.squareup.okio:okio-jvm:3.4.0")
         }
