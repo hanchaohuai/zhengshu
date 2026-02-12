@@ -40,6 +40,29 @@ import kotlinx.coroutines.launch
 fun MainScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val riskAlertState by viewModel.riskAlertState.collectAsState()
+    val context = LocalContext.current
+    val chatRiskViewModel: ChatRiskViewModel = viewModel()
+
+    LaunchedEffect(Unit) {
+        launch {
+            ChatMonitorManager.messageFlow.collect { message ->
+                chatRiskViewModel.addMessage(message)
+                
+                val riskLevel = chatRiskViewModel.getRiskLevel(message.id)
+                if (riskLevel == com.zhengshu.data.model.RiskLevel.HIGH) {
+                    viewModel.showRiskAlert(
+                        com.zhengshu.data.model.RiskDetectionResult(
+                            riskLevel = riskLevel,
+                            riskReason = "检测到高风险聊天消息",
+                            confidence = 0.8f,
+                            detectedKeywords = emptyList(),
+                            detectedBehaviors = emptyList()
+                        )
+                    )
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -77,8 +100,6 @@ fun MainScreen(viewModel: MainViewModel) {
             when (uiState.selectedTab) {
                 MainTab.Home -> HomeScreen(viewModel)
                 MainTab.ChatRisk -> {
-                    val context = LocalContext.current
-                    val chatRiskViewModel: ChatRiskViewModel = viewModel()
                     var showPermissionGuide by remember { mutableStateOf(!ChatMonitorManager.isAccessibilityServiceEnabled(context)) }
                     
                     if (showPermissionGuide) {
@@ -91,14 +112,6 @@ fun MainScreen(viewModel: MainViewModel) {
                             }
                         )
                     } else {
-                        LaunchedEffect(Unit) {
-                            launch {
-                                ChatMonitorManager.messageFlow.collect { message ->
-                                    chatRiskViewModel.addMessage(message)
-                                }
-                            }
-                        }
-                        
                         val chatRiskUiState by chatRiskViewModel.uiState.collectAsState()
                         val showDetailDialog by chatRiskViewModel.showDetailDialog.collectAsState()
                         
