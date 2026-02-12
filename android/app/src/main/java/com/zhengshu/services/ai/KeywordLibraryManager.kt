@@ -1,6 +1,7 @@
 package com.zhengshu.services.ai
 
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
 import com.zhengshu.data.model.RiskLevel
 import kotlinx.coroutines.Dispatchers
@@ -27,14 +28,20 @@ class KeywordLibraryManager(private val context: Context) {
     suspend fun loadKeywords(): Result<KeywordLibrary> = withContext(Dispatchers.IO) {
         try {
             if (keywordLibrary == null) {
+                Log.d("KeywordLibraryManager", "Loading fraud_keywords.json from assets")
                 val inputStream = context.assets.open("fraud_keywords.json")
                 val reader = InputStreamReader(inputStream)
                 keywordLibrary = gson.fromJson(reader, KeywordLibrary::class.java)
                 reader.close()
                 inputStream.close()
+                Log.d("KeywordLibraryManager", "Keywords loaded successfully: ${keywordLibrary?.categories?.size} categories")
+                keywordLibrary?.categories?.forEach { (id, category) ->
+                    Log.d("KeywordLibraryManager", "Category '$id' (${category.name}): ${category.keywords.size} keywords, risk level: ${category.risk_level}")
+                }
             }
             Result.success(keywordLibrary!!)
         } catch (e: Exception) {
+            Log.e("KeywordLibraryManager", "Failed to load keywords: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -42,11 +49,13 @@ class KeywordLibraryManager(private val context: Context) {
     suspend fun searchKeywords(text: String): List<KeywordMatch> = withContext(Dispatchers.IO) {
         val matches = mutableListOf<KeywordMatch>()
         
+        Log.d("KeywordLibraryManager", "Searching keywords in text: ${text.take(100)}")
         val library = loadKeywords().getOrNull() ?: return@withContext matches
         
         library.categories.forEach { (categoryId, category) ->
             category.keywords.forEach { keyword ->
                 if (text.contains(keyword, ignoreCase = true)) {
+                    Log.d("KeywordLibraryManager", "Matched keyword: '$keyword' in category: ${category.name}")
                     val riskLevel = when (category.risk_level) {
                         "HIGH" -> RiskLevel.HIGH
                         "MEDIUM" -> RiskLevel.MEDIUM
@@ -66,6 +75,7 @@ class KeywordLibraryManager(private val context: Context) {
             }
         }
         
+        Log.d("KeywordLibraryManager", "Found ${matches.size} keyword matches")
         matches
     }
     
