@@ -8,8 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Gavel
-import androidx.compose.material.icons.filled.Usb
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -23,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.zhengshu.data.model.RiskLevel
 import com.zhengshu.ui.viewmodel.MainViewModel
 import com.zhengshu.ui.viewmodel.MainTab
+import com.zhengshu.ui.viewmodel.RiskAlertState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,8 +149,8 @@ fun getTabIcon(tab: MainTab) = when (tab) {
     MainTab.Home -> Icons.Default.Home
     MainTab.Evidence -> Icons.Default.Folder
     MainTab.Legal -> Icons.Default.Description
-    MainTab.Judiciary -> Icons.Default.Gavel
-    MainTab.Hardware -> Icons.Default.Usb
+    MainTab.Judiciary -> Icons.Default.Info
+    MainTab.Hardware -> Icons.Default.Info
     MainTab.Settings -> Icons.Default.Settings
 }
 
