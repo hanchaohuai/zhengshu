@@ -3,6 +3,7 @@ package com.zhengshu.services.chat
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.zhengshu.data.model.ChatMessage
@@ -39,6 +40,8 @@ class ChatMonitorService : AccessibilityService() {
     
     override fun onServiceConnected() {
         super.onServiceConnected()
+        Log.d(TAG, "ChatMonitorService connected")
+        ChatMonitorManager.setServiceInstance(this)
         dataCollector = DataCollector(this)
         dataCollector?.startCollection()
         
@@ -51,10 +54,12 @@ class ChatMonitorService : AccessibilityService() {
     }
     
     override fun onInterrupt() {
-        
+        Log.d(TAG, "ChatMonitorService interrupted")
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        Log.d(TAG, "Received accessibility event: ${event.eventType}, package: ${event.packageName}")
+        
         if (event.eventType != AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
@@ -62,18 +67,25 @@ class ChatMonitorService : AccessibilityService() {
         }
         
         val packageName = event.packageName?.toString() ?: return
-        if (!isSupportedPackage(packageName)) return
+        if (!isSupportedPackage(packageName)) {
+            Log.d(TAG, "Package not supported: $packageName")
+            return
+        }
         
         currentChatPackage = packageName
+        Log.d(TAG, "Processing event for package: $packageName")
         
         val nodeInfo = event.source ?: return
         val textContent = extractTextFromNode(nodeInfo)
+        
+        Log.d(TAG, "Extracted text content: $textContent")
         
         if (textContent.isNotEmpty() && textContent != lastMessageContent) {
             lastMessageContent = textContent
             
             if (isLikelyNewMessage(textContent)) {
                 messageBuffer.append(textContent).append("\n")
+                Log.d(TAG, "Added to message buffer")
             }
         }
     }
@@ -116,11 +128,13 @@ class ChatMonitorService : AccessibilityService() {
     private fun analyzeBufferedMessages() {
         val bufferedText = messageBuffer.toString()
         if (bufferedText.isNotEmpty()) {
+            Log.d(TAG, "Analyzing buffered messages: $bufferedText")
             val chatMessage = createChatMessage(bufferedText)
             messageHistory.add(chatMessage)
             
             serviceScope.launch {
                 dataCollector?.collectChatMessage(chatMessage)
+                ChatMonitorManager.emitMessage(chatMessage)
             }
             
             messageBuffer.clear()
@@ -175,6 +189,7 @@ class ChatMonitorService : AccessibilityService() {
     
     override fun onDestroy() {
         super.onDestroy()
+        Log.d(TAG, "ChatMonitorService destroyed")
         serviceScope.cancel()
         dataCollector?.stopCollection()
     }

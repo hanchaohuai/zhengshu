@@ -14,17 +14,26 @@ import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhengshu.data.model.RiskLevel
+import com.zhengshu.services.chat.ChatMonitorManager
+import com.zhengshu.ui.viewmodel.ChatRiskViewModel
 import com.zhengshu.ui.viewmodel.MainViewModel
 import com.zhengshu.ui.viewmodel.MainTab
 import com.zhengshu.ui.viewmodel.RiskAlertState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,7 +76,51 @@ fun MainScreen(viewModel: MainViewModel) {
         ) {
             when (uiState.selectedTab) {
                 MainTab.Home -> HomeScreen(viewModel)
-                MainTab.ChatRisk -> ChatRiskPlaceholder()
+                MainTab.ChatRisk -> {
+                    val context = LocalContext.current
+                    val chatRiskViewModel: ChatRiskViewModel = viewModel()
+                    var showPermissionGuide by remember { mutableStateOf(!ChatMonitorManager.isAccessibilityServiceEnabled(context)) }
+                    
+                    if (showPermissionGuide) {
+                        ChatRiskPermissionGuide(
+                            onOpenSettings = {
+                                ChatMonitorManager.openAccessibilitySettings(context)
+                            },
+                            onCheckPermission = {
+                                showPermissionGuide = !ChatMonitorManager.isAccessibilityServiceEnabled(context)
+                            }
+                        )
+                    } else {
+                        LaunchedEffect(Unit) {
+                            launch {
+                                ChatMonitorManager.messageFlow.collect { message ->
+                                    chatRiskViewModel.addMessage(message)
+                                }
+                            }
+                        }
+                        
+                        val chatRiskUiState by chatRiskViewModel.uiState.collectAsState()
+                        val showDetailDialog by chatRiskViewModel.showDetailDialog.collectAsState()
+                        
+                        ChatRiskScreen(
+                            messages = chatRiskUiState.messages,
+                            riskLevels = chatRiskUiState.riskLevels,
+                            onBackClick = {},
+                            onMessageClick = { chatRiskViewModel.selectMessage(it) }
+                        )
+                        
+                        showDetailDialog?.let { message ->
+                            val riskLevel = chatRiskViewModel.getRiskLevel(message.id)
+                            MessageDetailDialog(
+                                message = message,
+                                riskLevel = riskLevel,
+                                onDismiss = { chatRiskViewModel.dismissDetailDialog() },
+                                onStartEvidence = { viewModel.startEvidenceCollection() },
+                                onMarkFalsePositive = { chatRiskViewModel.dismissDetailDialog() }
+                            )
+                        }
+                    }
+                }
                 MainTab.Evidence -> EvidenceScreen()
                 MainTab.Legal -> LegalScreen()
                 MainTab.Judiciary -> JudiciaryScreen()
@@ -253,6 +306,109 @@ fun EvidenceScreen() {
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun ChatRiskPermissionGuide(
+    onOpenSettings: () -> Unit,
+    onCheckPermission: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "聊天风险监控",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "需要无障碍服务权限",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Text(
+                    text = "聊天风险监控功能需要开启无障碍服务才能正常工作。",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+        
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "功能说明",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "聊天风险监控功能可以实时监控您的聊天消息，检测潜在的诈骗风险。",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "支持的平台：",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "• 微信\n• QQ\n• 企业微信\n• 钉钉",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "开启步骤",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "1. 点击下方按钮打开系统设置\n2. 找到「证枢」应用\n3. 开启「聊天风险监控」服务\n4. 返回此页面点击「检查权限」",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+        
+        Button(
+            onClick = onOpenSettings,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("打开系统设置")
+        }
+        
+        OutlinedButton(
+            onClick = onCheckPermission,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("检查权限")
         }
     }
 }
