@@ -217,9 +217,13 @@ class ChatMonitorService : AccessibilityService() {
             val chatMessage = createChatMessage(bufferedText)
             messageHistory.add(chatMessage)
             
+            Log.d(TAG, "Created ChatMessage: id=${chatMessage.id}, sender=${chatMessage.sender}, platform=${chatMessage.platform}")
+            
             serviceScope.launch {
                 dataCollector?.collectChatMessage(chatMessage)
+                Log.d(TAG, "Emitting message to ChatMonitorManager")
                 ChatMonitorManager.emitMessage(chatMessage)
+                Log.d(TAG, "Message emitted successfully")
             }
             
             messageBuffer.clear()

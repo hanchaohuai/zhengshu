@@ -31,11 +31,14 @@ class ChatRiskViewModel(application: Application) : AndroidViewModel(application
     val showDetailDialog: StateFlow<ChatMessage?> = _showDetailDialog.asStateFlow()
     
     fun addMessage(message: ChatMessage) {
+        Log.d("ChatRiskViewModel", "addMessage called: id=${message.id}, sender=${message.sender}")
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             try {
+                Log.d("ChatRiskViewModel", "Analyzing message: ${message.content.take(50)}")
                 val result = riskDetectionEngine.analyzeChatMessage(message)
+                Log.d("ChatRiskViewModel", "Risk detection result: level=${result.riskLevel}, reason=${result.riskReason}")
                 
                 val updatedMessages = _uiState.value.messages + message
                 val updatedRiskLevels = _uiState.value.riskLevels.toMutableMap().apply {
@@ -47,7 +50,9 @@ class ChatRiskViewModel(application: Application) : AndroidViewModel(application
                     riskLevels = updatedRiskLevels,
                     isLoading = false
                 )
+                Log.d("ChatRiskViewModel", "UI state updated: total messages=${updatedMessages.size}")
             } catch (e: Exception) {
+                Log.e("ChatRiskViewModel", "Error analyzing message: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = e.message
