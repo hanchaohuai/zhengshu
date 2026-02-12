@@ -58,7 +58,7 @@ class ChatMonitorService : AccessibilityService() {
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        Log.d(TAG, "Received accessibility event: ${event.eventType}, package: ${event.packageName}")
+        Log.d(TAG, "Received accessibility event: ${event.eventType}, package: ${event.packageName}, source: ${event.source != null}")
         
         if (event.eventType != AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
@@ -73,9 +73,14 @@ class ChatMonitorService : AccessibilityService() {
         }
         
         currentChatPackage = packageName
-        Log.d(TAG, "Processing event for package: $packageName")
+        Log.d(TAG, "Processing event for package: $packageName, eventType: ${event.eventType}")
         
-        val nodeInfo = event.source ?: return
+        val nodeInfo = event.source
+        if (nodeInfo == null) {
+            Log.d(TAG, "event.source is null")
+            return
+        }
+        
         val textContent = extractTextFromNode(nodeInfo)
         
         Log.d(TAG, "Extracted text content: $textContent")
@@ -93,12 +98,24 @@ class ChatMonitorService : AccessibilityService() {
     private fun extractTextFromNode(node: AccessibilityNodeInfo): String {
         val text = StringBuilder()
         traverseNode(node, text)
-        return text.toString()
+        val result = text.toString().trim()
+        Log.d(TAG, "extractTextFromNode result: ${result.take(100)}")
+        return result
     }
     
     private fun traverseNode(node: AccessibilityNodeInfo, text: StringBuilder) {
         if (node.text != null && node.text.isNotEmpty()) {
-            text.append(node.text).append(" ")
+            val nodeText = node.text.toString()
+            if (nodeText.length > 2) {
+                text.append(nodeText).append(" ")
+            }
+        }
+        
+        if (node.contentDescription != null && node.contentDescription.isNotEmpty()) {
+            val descText = node.contentDescription.toString()
+            if (descText.length > 2) {
+                text.append(descText).append(" ")
+            }
         }
         
         for (i in 0 until node.childCount) {
@@ -114,6 +131,11 @@ class ChatMonitorService : AccessibilityService() {
     }
     
     private fun isLikelyNewMessage(text: String): Boolean {
+        if (text.length < 5) {
+            Log.d(TAG, "Text too short: ${text.length}")
+            return false
+        }
+        
         val messageIndicators = listOf(
             "：",
             ":",
@@ -122,10 +144,21 @@ class ChatMonitorService : AccessibilityService() {
             "发送",
             "图片",
             "语音",
-            "视频"
+            "视频",
+            "转账",
+            "汇款",
+            "投资",
+            "理财",
+            "验证码",
+            "中奖",
+            "退款",
+            "兼职",
+            "刷单"
         )
         
-        return messageIndicators.any { text.contains(it) }
+        val hasIndicator = messageIndicators.any { text.contains(it) }
+        Log.d(TAG, "isLikelyNewMessage: hasIndicator=$hasIndicator, textLength=${text.length}")
+        return hasIndicator
     }
     
     private fun analyzeBufferedMessages() {
