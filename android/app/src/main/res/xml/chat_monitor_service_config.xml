@@ -6,5 +6,4 @@
     android:canPerformGestures="true"
     android:canRetrieveWindowContent="true"
     android:description="@string/chat_monitor_service_description"
-    android:notificationTimeout="100"
-    android:packageNames="com.tencent.mm,com.tencent.mobileqq,com.tencent.wework,com.alibaba.android.rimet,com.alibaba.android.dingtalk" />
+    android:notificationTimeout="100" />
