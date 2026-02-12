@@ -65,12 +65,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             selectedTab = tab
         )
     }
+
+    fun startDetection() {
+        _uiState.value = _uiState.value.copy(
+            isDetecting = true
+        )
+    }
+
+    fun stopDetection() {
+        _uiState.value = _uiState.value.copy(
+            isDetecting = false
+        )
+    }
+
+    fun updateRiskLevel(riskLevel: com.zhengshu.data.model.RiskLevel) {
+        _uiState.value = _uiState.value.copy(
+            currentRiskLevel = riskLevel
+        )
+    }
+
+    fun updateDetectionStats(detectionCount: Int, highRiskCount: Int) {
+        _uiState.value = _uiState.value.copy(
+            detectionCount = detectionCount,
+            highRiskCount = highRiskCount
+        )
+    }
 }
 
 data class MainUiState(
     val selectedTab: MainTab = MainTab.Home,
     val isCollectingEvidence: Boolean = false,
-    val evidenceList: List<Evidence> = emptyList()
+    val evidenceList: List<Evidence> = emptyList(),
+    val currentRiskLevel: com.zhengshu.data.model.RiskLevel = com.zhengshu.data.model.RiskLevel.NONE,
+    val detectionCount: Int = 0,
+    val highRiskCount: Int = 0,
+    val isDetecting: Boolean = false
 )
 
 data class RiskAlertState(

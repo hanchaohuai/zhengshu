@@ -84,7 +84,7 @@ class EncryptionManager(private val context: Context) {
             val encryptedFile = EncryptedFile.Builder(
                 outputFile,
                 context,
-                masterKey,
+                KEY_ALIAS,
                 EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
             ).build()
 
@@ -105,7 +105,7 @@ class EncryptionManager(private val context: Context) {
             val encryptedFile = EncryptedFile.Builder(
                 inputFile,
                 context,
-                masterKey,
+                KEY_ALIAS,
                 EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
             ).build()
 

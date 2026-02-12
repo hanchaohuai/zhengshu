@@ -6,9 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.filled.Settings
@@ -86,10 +85,70 @@ fun MainScreen(viewModel: MainViewModel) {
 }
 
 @Composable
+fun RiskAlertDialog(
+    alert: RiskAlertState,
+    onDismiss: () -> Unit,
+    onStartEvidence: () -> Unit,
+    onMarkFalsePositive: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "风险预警",
+                color = when (alert.riskLevel) {
+                    com.zhengshu.data.model.RiskLevel.HIGH -> MaterialTheme.colorScheme.error
+                    com.zhengshu.data.model.RiskLevel.MEDIUM -> MaterialTheme.colorScheme.tertiary
+                    com.zhengshu.data.model.RiskLevel.LOW -> MaterialTheme.colorScheme.secondary
+                    com.zhengshu.data.model.RiskLevel.NONE -> MaterialTheme.colorScheme.primary
+                }
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = alert.riskReason,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (alert.detectedKeywords.isNotEmpty()) {
+                    Text(
+                        text = "检测关键词: ${alert.detectedKeywords.joinToString(", ")}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Text(
+                    text = "置信度: ${(alert.confidence * 100).toInt()}%",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onStartEvidence) {
+                Text("开始存证")
+            }
+        },
+        dismissButton = {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextButton(onClick = onMarkFalsePositive) {
+                    Text("误报")
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("关闭")
+                }
+            }
+        }
+    )
+}
+
+@Composable
 fun getTabIcon(tab: MainTab) = when (tab) {
     MainTab.Home -> Icons.Default.Home
-    MainTab.Evidence -> Icons.Default.FolderOpen
-    MainTab.Legal -> Icons.Default.Article
+    MainTab.Evidence -> Icons.Default.Folder
+    MainTab.Legal -> Icons.Default.Description
     MainTab.Judiciary -> Icons.Default.Gavel
     MainTab.Hardware -> Icons.Default.Usb
     MainTab.Settings -> Icons.Default.Settings
@@ -109,10 +168,10 @@ fun HomeScreen(viewModel: MainViewModel) {
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
                 containerColor = when (uiState.currentRiskLevel) {
-                    RiskLevel.HIGH -> MaterialTheme.colorScheme.error
-                    RiskLevel.MEDIUM -> MaterialTheme.colorScheme.tertiary
-                    RiskLevel.LOW -> MaterialTheme.colorScheme.secondary
-                    RiskLevel.NONE -> MaterialTheme.colorScheme.primary
+                    com.zhengshu.data.model.RiskLevel.HIGH -> MaterialTheme.colorScheme.error
+                    com.zhengshu.data.model.RiskLevel.MEDIUM -> MaterialTheme.colorScheme.tertiary
+                    com.zhengshu.data.model.RiskLevel.LOW -> MaterialTheme.colorScheme.secondary
+                    com.zhengshu.data.model.RiskLevel.NONE -> MaterialTheme.colorScheme.primary
                 }
             )
         ) {

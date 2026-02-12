@@ -88,8 +88,8 @@ class KeywordLibraryManager(private val context: Context) {
         
         val categoryGroups = matches.groupBy { it.category }
         val reasons = categoryGroups.map { (category, matches) ->
-            val keywords = matches.take(3).joinToString("、") { it.keyword }
-            "检测到$category相关内容：$keywords"
+            val keywords = matches.take(3).joinToString(", ") { it.keyword }
+            "Detected $category related content: $keywords"
         }
         
         reasons.joinToString("；")
