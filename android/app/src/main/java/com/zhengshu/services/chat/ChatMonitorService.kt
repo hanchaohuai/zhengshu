@@ -102,7 +102,10 @@ class ChatMonitorService : AccessibilityService() {
         }
         
         for (i in 0 until node.childCount) {
-            traverseNode(node.getChild(i), text)
+            val child = node.getChild(i)
+            if (child != null) {
+                traverseNode(child, text)
+            }
         }
     }
     
