@@ -10,6 +10,7 @@ import com.zhengshu.data.model.ChatMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -87,7 +88,7 @@ class ChatNotificationListenerService : NotificationListenerService() {
                 }
                 
                 val chatMessage = ChatMessage(
-                    id = System.currentTimeMillis(),
+                    id = System.currentTimeMillis().toString(),
                     sender = extractSender(content),
                     content = content,
                     platform = platform,
