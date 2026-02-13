@@ -55,12 +55,15 @@ class KeywordLibraryManager(private val context: Context) {
         library.categories.forEach { (categoryId, category) ->
             category.keywords.forEach { keyword ->
                 if (text.contains(keyword, ignoreCase = true)) {
-                    Log.d("KeywordLibraryManager", "Matched keyword: '$keyword' in category: ${category.name}")
+                    Log.d("KeywordLibraryManager", "Matched keyword: '$keyword' in category: ${category.name}, risk_level: ${category.risk_level}")
                     val riskLevel = when (category.risk_level) {
                         "HIGH" -> RiskLevel.HIGH
                         "MEDIUM" -> RiskLevel.MEDIUM
                         "LOW" -> RiskLevel.LOW
-                        else -> RiskLevel.NONE
+                        else -> {
+                            Log.e("KeywordLibraryManager", "Unknown risk level: ${category.risk_level} for category: ${category.name}")
+                            RiskLevel.NONE
+                        }
                     }
                     
                     matches.add(
