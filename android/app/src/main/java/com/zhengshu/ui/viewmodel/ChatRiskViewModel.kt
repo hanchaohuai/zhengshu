@@ -8,8 +8,10 @@ import com.zhengshu.data.model.ChatMessage
 import com.zhengshu.data.model.RiskDetectionResult
 import com.zhengshu.data.model.RiskLevel
 import com.zhengshu.services.ai.RiskDetectionEngine
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -31,8 +33,8 @@ class ChatRiskViewModel(application: Application) : AndroidViewModel(application
     private val _showDetailDialog = MutableStateFlow<ChatMessage?>(null)
     val showDetailDialog: StateFlow<ChatMessage?> = _showDetailDialog.asStateFlow()
     
-    private val _riskDetectionResult = MutableStateFlow<Pair<String, RiskLevel>?>(null)
-    val riskDetectionResult: StateFlow<Pair<String, RiskLevel>?> = _riskDetectionResult.asStateFlow()
+    private val _riskAlertFlow = MutableSharedFlow<RiskDetectionResult>()
+    val riskAlertFlow = _riskAlertFlow.asSharedFlow()
     
     fun addMessage(message: ChatMessage) {
         Log.d("ChatRiskViewModel", "addMessage called: id=${message.id}, sender=${message.sender}")
@@ -56,7 +58,10 @@ class ChatRiskViewModel(application: Application) : AndroidViewModel(application
                 )
                 Log.d("ChatRiskViewModel", "UI state updated: total messages=${updatedMessages.size}")
                 
-                _riskDetectionResult.value = Pair(message.id, result.riskLevel)
+                if (result.riskLevel == RiskLevel.HIGH) {
+                    Log.d("ChatRiskViewModel", "Emitting high risk alert")
+                    _riskAlertFlow.emit(result)
+                }
             } catch (e: Exception) {
                 Log.e("ChatRiskViewModel", "Error analyzing message: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(

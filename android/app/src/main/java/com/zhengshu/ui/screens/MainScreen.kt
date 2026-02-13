@@ -42,8 +42,7 @@ fun MainScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val riskAlertState by viewModel.riskAlertState.collectAsState()
     val context = LocalContext.current
-    val chatRiskViewModel: ChatRiskViewModel = viewModel()
-    val riskDetectionResult by chatRiskViewModel.riskDetectionResult.collectAsState()
+    val chatRiskViewModel: ChatRiskViewModel = viewModel(factory = MainViewModel.ChatRiskViewModelFactory(LocalContext.current.applicationContext as Application))
 
     LaunchedEffect(Unit) {
         launch {
@@ -51,26 +50,11 @@ fun MainScreen(viewModel: MainViewModel) {
                 chatRiskViewModel.addMessage(message)
             }
         }
-    }
-    
-    LaunchedEffect(riskDetectionResult) {
-        riskDetectionResult?.let { (messageId, riskLevel) ->
-            Log.d("MainScreen", "Risk detection completed: messageId=$messageId, riskLevel=$riskLevel")
-            
-            if (riskLevel == com.zhengshu.data.model.RiskLevel.HIGH) {
-                val message = chatRiskViewModel.uiState.value.messages.find { it.id == messageId }
-                message?.let {
-                    Log.d("MainScreen", "Showing risk alert for high risk message: ${it.content.take(30)}")
-                    viewModel.showRiskAlert(
-                        com.zhengshu.data.model.RiskDetectionResult(
-                            riskLevel = riskLevel,
-                            riskReason = "检测到高风险聊天消息: ${it.content.take(50)}",
-                            confidence = 0.8f,
-                            detectedKeywords = emptyList(),
-                            detectedBehaviors = emptyList()
-                        )
-                    )
-                }
+        
+        launch {
+            chatRiskViewModel.riskAlertFlow.collect { result ->
+                Log.d("MainScreen", "Received high risk alert: ${result.riskReason}")
+                viewModel.showRiskAlert(result)
             }
         }
     }
