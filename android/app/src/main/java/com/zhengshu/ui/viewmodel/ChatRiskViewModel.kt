@@ -31,6 +31,9 @@ class ChatRiskViewModel(application: Application) : AndroidViewModel(application
     private val _showDetailDialog = MutableStateFlow<ChatMessage?>(null)
     val showDetailDialog: StateFlow<ChatMessage?> = _showDetailDialog.asStateFlow()
     
+    private val _riskDetectionResult = MutableStateFlow<Pair<String, RiskLevel>?>(null)
+    val riskDetectionResult: StateFlow<Pair<String, RiskLevel>?> = _riskDetectionResult.asStateFlow()
+    
     fun addMessage(message: ChatMessage) {
         Log.d("ChatRiskViewModel", "addMessage called: id=${message.id}, sender=${message.sender}")
         viewModelScope.launch {
@@ -52,6 +55,8 @@ class ChatRiskViewModel(application: Application) : AndroidViewModel(application
                     isLoading = false
                 )
                 Log.d("ChatRiskViewModel", "UI state updated: total messages=${updatedMessages.size}")
+                
+                _riskDetectionResult.value = Pair(message.id, result.riskLevel)
             } catch (e: Exception) {
                 Log.e("ChatRiskViewModel", "Error analyzing message: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(

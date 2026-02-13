@@ -42,18 +42,28 @@ fun MainScreen(viewModel: MainViewModel) {
     val riskAlertState by viewModel.riskAlertState.collectAsState()
     val context = LocalContext.current
     val chatRiskViewModel: ChatRiskViewModel = viewModel()
+    val riskDetectionResult by chatRiskViewModel.riskDetectionResult.collectAsState()
 
     LaunchedEffect(Unit) {
         launch {
             ChatMonitorManager.messageFlow.collect { message ->
                 chatRiskViewModel.addMessage(message)
-                
-                val riskLevel = chatRiskViewModel.getRiskLevel(message.id)
-                if (riskLevel == com.zhengshu.data.model.RiskLevel.HIGH) {
+            }
+        }
+    }
+    
+    LaunchedEffect(riskDetectionResult) {
+        riskDetectionResult?.let { (messageId, riskLevel) ->
+            Log.d("MainScreen", "Risk detection completed: messageId=$messageId, riskLevel=$riskLevel")
+            
+            if (riskLevel == com.zhengshu.data.model.RiskLevel.HIGH) {
+                val message = chatRiskViewModel.uiState.value.messages.find { it.id == messageId }
+                message?.let {
+                    Log.d("MainScreen", "Showing risk alert for high risk message: ${it.content.take(30)}")
                     viewModel.showRiskAlert(
                         com.zhengshu.data.model.RiskDetectionResult(
                             riskLevel = riskLevel,
-                            riskReason = "检测到高风险聊天消息",
+                            riskReason = "检测到高风险聊天消息: ${it.content.take(50)}",
                             confidence = 0.8f,
                             detectedKeywords = emptyList(),
                             detectedBehaviors = emptyList()
@@ -100,15 +110,22 @@ fun MainScreen(viewModel: MainViewModel) {
             when (uiState.selectedTab) {
                 MainTab.Home -> HomeScreen(viewModel)
                 MainTab.ChatRisk -> {
-                    var showPermissionGuide by remember { mutableStateOf(!ChatMonitorManager.isAccessibilityServiceEnabled(context)) }
+                    val accessibilityEnabled = ChatMonitorManager.isAccessibilityServiceEnabled(context)
+                    val notificationEnabled = ChatMonitorManager.isNotificationListenerEnabled(context)
+                    var showPermissionGuide by remember { mutableStateOf(!accessibilityEnabled || !notificationEnabled) }
                     
                     if (showPermissionGuide) {
                         ChatRiskPermissionGuide(
-                            onOpenSettings = {
+                            accessibilityEnabled = accessibilityEnabled,
+                            notificationEnabled = notificationEnabled,
+                            onOpenAccessibilitySettings = {
                                 ChatMonitorManager.openAccessibilitySettings(context)
                             },
+                            onOpenNotificationSettings = {
+                                ChatMonitorManager.openNotificationListenerSettings(context)
+                            },
                             onCheckPermission = {
-                                showPermissionGuide = !ChatMonitorManager.isAccessibilityServiceEnabled(context)
+                                showPermissionGuide = !ChatMonitorManager.isAccessibilityServiceEnabled(context) || !ChatMonitorManager.isNotificationListenerEnabled(context)
                             }
                         )
                     } else {
@@ -325,7 +342,10 @@ fun EvidenceScreen() {
 
 @Composable
 fun ChatRiskPermissionGuide(
-    onOpenSettings: () -> Unit,
+    accessibilityEnabled: Boolean,
+    notificationEnabled: Boolean,
+    onOpenAccessibilitySettings: () -> Unit,
+    onOpenNotificationSettings: () -> Unit,
     onCheckPermission: () -> Unit
 ) {
     Column(
@@ -339,25 +359,51 @@ fun ChatRiskPermissionGuide(
             style = MaterialTheme.typography.headlineSmall
         )
         
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+        if (!accessibilityEnabled) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
             ) {
-                Text(
-                    text = "需要无障碍服务权限",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.error
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "需要无障碍服务权限",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = "聊天风险监控功能需要开启无障碍服务才能正常工作。",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+        
+        if (!notificationEnabled) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
                 )
-                Text(
-                    text = "聊天风险监控功能需要开启无障碍服务才能正常工作。",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "需要通知访问权限",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = "聊天风险监控功能需要开启通知访问权限才能正常工作。",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         }
         
@@ -404,17 +450,34 @@ fun ChatRiskPermissionGuide(
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    text = "1. 点击下方按钮打开系统设置\n2. 找到「证枢」应用\n3. 开启「聊天风险监控」服务\n4. 返回此页面点击「检查权限」",
+                    text = if (!accessibilityEnabled && !notificationEnabled) {
+                        "1. 点击下方按钮打开系统设置\n2. 找到「证枢」应用\n3. 开启「聊天风险监控」服务\n4. 开启「通知访问」权限\n5. 返回此页面点击「检查权限」"
+                    } else if (!accessibilityEnabled) {
+                        "1. 点击下方按钮打开系统设置\n2. 找到「证枢」应用\n3. 开启「聊天风险监控」服务\n4. 返回此页面点击「检查权限」"
+                    } else {
+                        "1. 点击下方按钮打开系统设置\n2. 找到「证枢」应用\n3. 开启「通知访问」权限\n4. 返回此页面点击「检查权限」"
+                    },
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
         }
         
-        Button(
-            onClick = onOpenSettings,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("打开系统设置")
+        if (!accessibilityEnabled) {
+            Button(
+                onClick = onOpenAccessibilitySettings,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("打开无障碍服务设置")
+            }
+        }
+        
+        if (!notificationEnabled) {
+            Button(
+                onClick = onOpenNotificationSettings,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("打开通知访问设置")
+            }
         }
         
         OutlinedButton(

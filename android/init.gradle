@@ -1,0 +1,27 @@
+import javax.net.ssl.*
+import java.security.cert.X509Certificate
+
+System.setProperty("javax.net.ssl.trustStore", "NONE")
+System.setProperty("javax.net.ssl.trustStorePassword", "")
+System.setProperty("javax.net.ssl.trustStoreType", "")
+
+def disableSSLVerification() {
+    def trustAllCerts = [
+        new X509TrustManager() {
+            X509Certificate[] getAcceptedIssuers() { null }
+            void checkClientTrusted(X509Certificate[] certs, String authType) {}
+            void checkServerTrusted(X509Certificate[] certs, String authType) {}
+        }
+    ] as X509Certificate[]
+
+    def sc = SSLContext.getInstance("SSL")
+    sc.init(null, trustAllCerts, new java.security.SecureRandom())
+    HttpsURLConnection.setDefaultSSLSocketFactory(sc.socketFactory)
+    HttpsURLConnection.setDefaultHostnameVerifier({ hostname, session -> true })
+}
+
+try {
+    disableSSLVerification()
+} catch (Exception e) {
+    println "Warning: Could not disable SSL verification: ${e.message}"
+}

@@ -1,13 +1,10 @@
 package com.zhengshu.services.chat
 
 import android.accessibilityservice.AccessibilityService
-import android.content.Intent
-import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.zhengshu.data.model.ChatMessage
-import com.zhengshu.services.ai.DataCollector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -22,34 +19,29 @@ class ChatMonitorService : AccessibilityService() {
         
         val supportedPackages = listOf(
             "com.tencent.mm",
-            "com.tencent.mobileqq",
-            "com.tencent.wework",
-            "com.alibaba.android.rimet",
-            "com.alibaba.android.dingtalk"
+            "com.tencent.mobileqq"
         )
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
-    private var dataCollector: DataCollector? = null
     
     private var currentChatPackage: String? = null
-    private var lastMessageContent: String = ""
-    private var messageBuffer = StringBuilder()
-    private var lastWindowContent: String = ""
-    
+    private var lastProcessedContent: String = ""
+    private var lastProcessedTime: Long = 0
     private val messageHistory = mutableListOf<ChatMessage>()
+    
+    private val messageBuffer = StringBuilder()
+    private var lastMessageHash: Int = 0
     
     override fun onServiceConnected() {
         super.onServiceConnected()
         Log.d(TAG, "ChatMonitorService connected")
         ChatMonitorManager.setServiceInstance(this)
-        dataCollector = DataCollector(this)
-        dataCollector?.startCollection()
         
         serviceScope.launch {
             while (true) {
-                delay(5000)
-                analyzeBufferedMessages()
+                delay(1000)
+                processBufferedMessages()
             }
         }
     }
@@ -59,190 +51,180 @@ class ChatMonitorService : AccessibilityService() {
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        Log.d(TAG, "Received accessibility event: ${event.eventType}, package: ${event.packageName}")
+        try {
+            val packageName = event.packageName?.toString()
+            
+            if (packageName == null || !isSupportedPackage(packageName)) {
+                return
+            }
+            
+            currentChatPackage = packageName
+            
+            when (event.eventType) {
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                    handleWindowStateChanged(event, packageName)
+                }
+                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                    handleWindowContentChanged(event, packageName)
+                }
+                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> {
+                    handleViewTextChanged(event, packageName)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing accessibility event: ${e.message}", e)
+        }
+    }
+    
+    private fun handleWindowStateChanged(event: AccessibilityEvent, packageName: String) {
+        Log.d(TAG, "Window state changed: $packageName")
         
-        val packageName = event.packageName?.toString() ?: return
-        if (!isSupportedPackage(packageName)) {
-            Log.d(TAG, "Package not supported: $packageName")
+        val nodeInfo = rootInActiveWindow
+        if (nodeInfo != null) {
+            val textContent = extractTextFromNode(nodeInfo)
+            if (textContent.isNotEmpty()) {
+                processNewContent(textContent, packageName, "WindowStateChanged")
+            }
+        }
+    }
+    
+    private fun handleWindowContentChanged(event: AccessibilityEvent, packageName: String) {
+        val nodeInfo = event.source ?: rootInActiveWindow
+        if (nodeInfo != null) {
+            val textContent = extractTextFromNode(nodeInfo)
+            if (textContent.isNotEmpty()) {
+                processNewContent(textContent, packageName, "ContentChanged")
+            }
+        }
+    }
+    
+    private fun handleViewTextChanged(event: AccessibilityEvent, packageName: String) {
+        val text = event.text?.joinToString(" ") ?: ""
+        if (text.isNotEmpty()) {
+            processNewContent(text, packageName, "ViewTextChanged")
+        }
+    }
+    
+    private fun processNewContent(content: String, packageName: String, source: String) {
+        val currentTime = System.currentTimeMillis()
+        
+        if (content == lastProcessedContent && (currentTime - lastProcessedTime) < 2000) {
             return
         }
         
-        currentChatPackage = packageName
-        
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            Log.d(TAG, "Window state changed for package: $packageName")
-            val nodeInfo = rootInActiveWindow
-            if (nodeInfo != null) {
-                Log.d(TAG, "rootInActiveWindow is not null")
-                val textContent = extractTextFromNode(nodeInfo)
-                Log.d(TAG, "Window content: ${textContent.take(100)}")
-                
-                if (textContent.isNotEmpty() && textContent != lastWindowContent) {
-                    lastWindowContent = textContent
-                    
-                    if (isLikelyNewMessage(textContent)) {
-                        messageBuffer.append(textContent).append("\n")
-                        Log.d(TAG, "Added to message buffer")
-                    }
-                }
-            } else {
-                Log.d(TAG, "rootInActiveWindow is null")
-            }
+        val contentHash = content.hashCode()
+        if (contentHash == lastMessageHash && (currentTime - lastProcessedTime) < 1000) {
             return
         }
         
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            val nodeInfo = event.source ?: rootInActiveWindow
-            if (nodeInfo != null) {
-                val textContent = extractTextFromNode(nodeInfo)
-                Log.d(TAG, "Content changed: ${textContent.take(50)}")
-                
-                if (textContent.isNotEmpty() && textContent != lastMessageContent) {
-                    lastMessageContent = textContent
-                    
-                    if (isLikelyNewMessage(textContent)) {
-                        messageBuffer.append(textContent).append("\n")
-                        Log.d(TAG, "Added to message buffer")
-                    }
-                }
-            } else {
-                Log.d(TAG, "event.source and rootInActiveWindow are both null")
-            }
+        lastProcessedContent = content
+        lastProcessedTime = currentTime
+        lastMessageHash = contentHash
+        
+        Log.d(TAG, "New content from $source: ${content.take(50)}")
+        
+        if (isLikelyChatMessage(content)) {
+            messageBuffer.append(content).append("\n")
+            Log.d(TAG, "Added to buffer, buffer size: ${messageBuffer.length}")
         }
     }
     
     private fun extractTextFromNode(node: AccessibilityNodeInfo): String {
-        val text = StringBuilder()
-        traverseNode(node, text)
-        val result = text.toString().trim()
-        Log.d(TAG, "extractTextFromNode result: ${result.take(100)}")
-        return result
+        val result = StringBuilder()
+        traverseNode(node, result, 0, 100)
+        return result.toString().trim()
     }
     
-    private fun traverseNode(node: AccessibilityNodeInfo, text: StringBuilder) {
-        if (node.text != null && node.text.isNotEmpty()) {
-            val nodeText = node.text.toString()
-            if (nodeText.length > 1) {
-                text.append(nodeText).append(" ")
-            }
+    private fun traverseNode(node: AccessibilityNodeInfo, text: StringBuilder, depth: Int, maxDepth: Int) {
+        if (depth > maxDepth) {
+            return
         }
         
-        if (node.contentDescription != null && node.contentDescription.isNotEmpty()) {
-            val descText = node.contentDescription.toString()
-            if (descText.length > 1) {
-                text.append(descText).append(" ")
-            }
-        }
-        
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i)
-            if (child != null) {
-                try {
-                    traverseNode(child, text)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error traversing child node: ${e.message}")
+        try {
+            node.text?.toString()?.let { nodeText ->
+                if (nodeText.length > 1) {
+                    text.append(nodeText).append(" ")
                 }
             }
+            
+            node.contentDescription?.toString()?.let { descText ->
+                if (descText.length > 1) {
+                    text.append(descText).append(" ")
+                }
+            }
+            
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i)
+                if (child != null) {
+                    traverseNode(child, text, depth + 1, maxDepth)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error traversing node at depth $depth: ${e.message}")
         }
     }
     
-    private fun isSupportedPackage(packageName: String): Boolean {
-        return packageName == "com.tencent.mm" || packageName == "com.tencent.mobileqq"
-    }
-    
-    private fun isLikelyNewMessage(text: String): Boolean {
+    private fun isLikelyChatMessage(text: String): Boolean {
         if (text.length < 3) {
-            Log.d(TAG, "Text too short: ${text.length}")
             return false
         }
         
         val messageIndicators = listOf(
-            "：",
-            ":",
-            "说",
-            "发",
-            "发送",
-            "图片",
-            "语音",
-            "视频",
-            "转账",
-            "汇款",
-            "投资",
-            "理财",
-            "验证码",
-            "中奖",
-            "退款",
-            "兼职",
-            "刷单",
-            "你好",
-            "在吗",
-            "请",
-            "帮",
-            "可以",
-            "需要",
-            "钱",
-            "元",
-            "¥",
-            "￥",
-            "￥",
-            "银行",
-            "卡",
-            "账号",
-            "密码",
-            "链接",
-            "点击",
-            "下载",
-            "安装"
+            "：", ":", "说", "发", "发送", "图片", "语音", "视频",
+            "转账", "汇款", "投资", "理财", "验证码", "中奖", "退款",
+            "兼职", "刷单", "你好", "在吗", "请", "帮", "可以", "需要",
+            "钱", "元", "¥", "￥", "银行", "卡", "账号", "密码",
+            "链接", "点击", "下载", "安装"
         )
         
-        val hasIndicator = messageIndicators.any { text.contains(it) }
-        Log.d(TAG, "isLikelyNewMessage: hasIndicator=$hasIndicator, textLength=${text.length}")
-        
-        if (hasIndicator) {
+        if (messageIndicators.any { text.contains(it) }) {
             return true
         }
         
-        if (text.length > 10) {
-            Log.d(TAG, "Text is long enough (${text.length}), treating as potential message")
+        if (text.length > 10 && text.matches(Regex(".*[\\u4e00-\\u9fa5].*"))) {
             return true
         }
         
         return false
     }
     
-    private fun analyzeBufferedMessages() {
-        val bufferedText = messageBuffer.toString()
-        if (bufferedText.isNotEmpty()) {
-            Log.d(TAG, "Analyzing buffered messages: $bufferedText")
-            val chatMessage = createChatMessage(bufferedText)
-            messageHistory.add(chatMessage)
-            
-            Log.d(TAG, "Created ChatMessage: id=${chatMessage.id}, sender=${chatMessage.sender}, platform=${chatMessage.platform}")
-            
-            serviceScope.launch {
-                dataCollector?.collectChatMessage(chatMessage)
-                Log.d(TAG, "Emitting message to ChatMonitorManager")
-                ChatMonitorManager.emitMessage(chatMessage)
-                Log.d(TAG, "Message emitted successfully")
-            }
-            
-            messageBuffer.clear()
+    private fun processBufferedMessages() {
+        val bufferedText = messageBuffer.toString().trim()
+        if (bufferedText.isEmpty()) {
+            return
         }
+        
+        Log.d(TAG, "Processing buffered messages: ${bufferedText.take(100)}")
+        
+        val chatMessage = createChatMessage(bufferedText)
+        messageHistory.add(chatMessage)
+        
+        Log.d(TAG, "Created ChatMessage: id=${chatMessage.id}, sender=${chatMessage.sender}, content=${chatMessage.content.take(50)}")
+        
+        serviceScope.launch {
+            try {
+                ChatMonitorManager.emitMessage(chatMessage)
+                Log.d(TAG, "Message emitted successfully to ChatMonitorManager")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error emitting message: ${e.message}", e)
+            }
+        }
+        
+        messageBuffer.clear()
     }
     
     private fun createChatMessage(content: String): ChatMessage {
         val platform = when (currentChatPackage) {
             "com.tencent.mm" -> "微信"
             "com.tencent.mobileqq" -> "QQ"
-            "com.tencent.wework" -> "企业微信"
-            "com.alibaba.android.rimet" -> "钉钉"
-            "com.alibaba.android.dingtalk" -> "钉钉"
             else -> "未知平台"
         }
         
+        val sender = extractSender(content)
+        
         return ChatMessage(
             id = System.currentTimeMillis().toString(),
-            sender = extractSender(content),
+            sender = sender,
             content = content,
             timestamp = System.currentTimeMillis(),
             platform = platform,
@@ -252,20 +234,26 @@ class ChatMonitorService : AccessibilityService() {
     }
     
     private fun extractSender(content: String): String {
-        val senderPatterns = listOf(
-            Regex("^(.+?)[：:](.+)"),
-            Regex("^(.+?)[:](.+)"),
-            Regex("^(.+?)说")
-        )
-        
-        for (pattern in senderPatterns) {
-            val match = pattern.find(content)
-            if (match != null) {
-                return match.groupValues[1].trim()
+        val lines = content.split("\n")
+        for (line in lines) {
+            if (line.contains("：") || line.contains(":")) {
+                val parts = line.split(Regex("[：:]"))
+                if (parts.size >= 2 && parts[0].length > 0 && parts[0].length < 20) {
+                    return parts[0].trim()
+                }
             }
         }
         
+        val firstLine = lines.firstOrNull { it.isNotEmpty() } ?: ""
+        if (firstLine.length > 0 && firstLine.length < 20) {
+            return firstLine.trim()
+        }
+        
         return "未知发送者"
+    }
+    
+    private fun isSupportedPackage(packageName: String): Boolean {
+        return supportedPackages.contains(packageName)
     }
     
     fun getMessageHistory(): List<ChatMessage> {
@@ -280,6 +268,5 @@ class ChatMonitorService : AccessibilityService() {
         super.onDestroy()
         Log.d(TAG, "ChatMonitorService destroyed")
         serviceScope.cancel()
-        dataCollector?.stopCollection()
     }
 }

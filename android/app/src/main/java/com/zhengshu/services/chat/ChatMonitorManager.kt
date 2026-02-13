@@ -1,5 +1,7 @@
 package com.zhengshu.services.chat
 
+import android.app.NotificationManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
@@ -39,8 +41,27 @@ object ChatMonitorManager {
         return !TextUtils.isEmpty(enabledServices) && enabledServices.contains(serviceName)
     }
     
+    fun isNotificationListenerEnabled(context: Context): Boolean {
+        val packageName = context.packageName
+        val componentName = ComponentName(packageName, "com.zhengshu.services.chat.NotificationMonitorService")
+        
+        val enabledListeners = Settings.Secure.getString(
+            context.contentResolver,
+            "enabled_notification_listeners"
+        )
+        
+        val flattenedName = componentName.flattenToString()
+        return !TextUtils.isEmpty(enabledListeners) && enabledListeners.contains(flattenedName)
+    }
+    
     fun openAccessibilitySettings(context: Context) {
         val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        context.startActivity(intent)
+    }
+    
+    fun openNotificationListenerSettings(context: Context) {
+        val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
         context.startActivity(intent)
     }
