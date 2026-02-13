@@ -1,6 +1,7 @@
 package com.zhengshu.services.ai
 
 import android.content.Context
+import android.util.Log
 import com.zhengshu.data.model.BehaviorData
 import com.zhengshu.data.model.BehaviorType
 import com.zhengshu.data.model.ChatMessage
@@ -612,7 +613,7 @@ class RiskDetectionEngine(private val context: Context) {
     }
     
     private fun combineRiskLevels(vararg levels: RiskLevel): RiskLevel {
-        return levels.maxByOrNull { it.ordinal } ?: RiskLevel.NONE
+        return levels.minByOrNull { it.ordinal } ?: RiskLevel.NONE
     }
     
     private fun calculateConfidence(matches: List<KeywordMatch>): Float {
