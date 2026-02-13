@@ -15,9 +15,13 @@ class RiskDetectionEngine(private val context: Context) {
     private val behaviorRuleEngine = BehaviorRuleEngine()
     
     suspend fun analyzeText(text: String): RiskDetectionResult = withContext(Dispatchers.Default) {
+        Log.d("RiskDetectionEngine", "analyzeText called: ${text.take(100)}")
+        
         val keywordMatches = keywordLibraryManager.searchKeywords(text)
         val highestRiskLevel = keywordLibraryManager.getHighestRiskLevel(text)
         val riskReason = keywordLibraryManager.getRiskReason(text)
+        
+        Log.d("RiskDetectionEngine", "analyzeText result: highestRiskLevel=$highestRiskLevel, riskReason=$riskReason, matches=${keywordMatches.size}")
         
         val detectedKeywords = keywordMatches.map { it.keyword }
         val confidence = calculateConfidence(keywordMatches)
@@ -32,11 +36,15 @@ class RiskDetectionEngine(private val context: Context) {
     }
     
     suspend fun analyzeChatMessage(message: ChatMessage): RiskDetectionResult = withContext(Dispatchers.Default) {
+        Log.d("RiskDetectionEngine", "analyzeChatMessage called: sender=${message.sender}, content=${message.content.take(50)}")
+        
         val textResult = analyzeText(message.content)
         
         val platformRisk = analyzePlatform(message.platform)
         val senderRisk = analyzeSender(message.sender)
         val timePatternRisk = analyzeTimePattern(message.timestamp)
+        
+        Log.d("RiskDetectionEngine", "Risk levels: text=${textResult.riskLevel}, platform=$platformRisk, sender=$senderRisk, time=$timePatternRisk")
         
         val combinedRiskLevel = combineRiskLevels(
             textResult.riskLevel,
@@ -44,6 +52,8 @@ class RiskDetectionEngine(private val context: Context) {
             senderRisk,
             timePatternRisk
         )
+        
+        Log.d("RiskDetectionEngine", "Combined risk level: $combinedRiskLevel")
         
         val combinedReason = buildString {
             if (textResult.riskReason.isNotEmpty()) {
@@ -62,6 +72,8 @@ class RiskDetectionEngine(private val context: Context) {
                 append("发送时间异常")
             }
         }
+        
+        Log.d("RiskDetectionEngine", "Combined reason: $combinedReason")
         
         RiskDetectionResult(
             riskLevel = combinedRiskLevel,

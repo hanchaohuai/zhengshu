@@ -85,11 +85,19 @@ class KeywordLibraryManager(private val context: Context) {
     suspend fun getHighestRiskLevel(text: String): RiskLevel = withContext(Dispatchers.IO) {
         val matches = searchKeywords(text)
         
+        Log.d("KeywordLibraryManager", "getHighestRiskLevel: matches.size=${matches.size}")
+        matches.forEach { match ->
+            Log.d("KeywordLibraryManager", "  - keyword='${match.keyword}', riskLevel=${match.riskLevel}")
+        }
+        
         if (matches.isEmpty()) {
+            Log.d("KeywordLibraryManager", "No matches found, returning NONE")
             return@withContext RiskLevel.NONE
         }
         
-        matches.maxByOrNull { it.riskLevel }?.riskLevel ?: RiskLevel.NONE
+        val highest = matches.maxByOrNull { it.riskLevel }?.riskLevel ?: RiskLevel.NONE
+        Log.d("KeywordLibraryManager", "Highest risk level: $highest")
+        highest
     }
     
     suspend fun getRiskReason(text: String): String = withContext(Dispatchers.IO) {
