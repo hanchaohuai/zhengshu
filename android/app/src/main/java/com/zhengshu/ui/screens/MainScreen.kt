@@ -1,5 +1,6 @@
 package com.zhengshu.ui.screens
 
+import android.app.Application
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -27,6 +28,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhengshu.data.model.RiskLevel
 import com.zhengshu.services.chat.ChatMonitorManager
@@ -36,13 +39,23 @@ import com.zhengshu.ui.viewmodel.MainTab
 import com.zhengshu.ui.viewmodel.RiskAlertState
 import kotlinx.coroutines.launch
 
+class ChatRiskViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ChatRiskViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return ChatRiskViewModel(application) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val riskAlertState by viewModel.riskAlertState.collectAsState()
     val context = LocalContext.current
-    val chatRiskViewModel: ChatRiskViewModel = viewModel(factory = MainViewModel.ChatRiskViewModelFactory(LocalContext.current.applicationContext as Application))
+    val chatRiskViewModel: ChatRiskViewModel = viewModel(factory = ChatRiskViewModelFactory(LocalContext.current.applicationContext as Application))
 
     LaunchedEffect(Unit) {
         launch {
