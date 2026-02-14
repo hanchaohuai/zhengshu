@@ -83,6 +83,11 @@ class ChatRiskViewModel(application: Application) : AndroidViewModel(application
                 messages.forEach { message ->
                     val result = riskDetectionEngine.analyzeChatMessage(message)
                     updatedRiskLevels[message.id] = result.riskLevel
+                    
+                    if (result.riskLevel == RiskLevel.HIGH) {
+                        Log.d("ChatRiskViewModel", "Emitting high risk alert for batch message")
+                        _riskAlertFlow.emit(result)
+                    }
                 }
                 
                 _uiState.value = ChatRiskUiState(

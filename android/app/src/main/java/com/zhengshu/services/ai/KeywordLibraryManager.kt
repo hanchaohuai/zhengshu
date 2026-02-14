@@ -95,7 +95,7 @@ class KeywordLibraryManager(private val context: Context) {
             return@withContext RiskLevel.NONE
         }
         
-        val highest = matches.maxByOrNull { it.riskLevel }?.riskLevel ?: RiskLevel.NONE
+        val highest = matches.minByOrNull { it.riskLevel }?.riskLevel ?: RiskLevel.NONE
         Log.d("KeywordLibraryManager", "Highest risk level: $highest")
         highest
     }

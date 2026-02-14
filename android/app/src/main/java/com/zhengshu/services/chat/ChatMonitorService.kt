@@ -181,7 +181,7 @@ class ChatMonitorService : AccessibilityService() {
             return true
         }
         
-        if (text.length > 10 && text.matches(Regex(".*[\\u4e00-\\u9fa5].*"))) {
+        if (text.length > 10 && Regex(""".*[\u4e00-\u9fa5]+.*""").matches(text)) {
             return true
         }
         
