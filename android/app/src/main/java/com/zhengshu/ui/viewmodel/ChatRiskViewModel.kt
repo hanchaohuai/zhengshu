@@ -41,14 +41,13 @@ class ChatRiskViewModel(application: Application) : AndroidViewModel(application
     val riskAlertFlow = _riskAlertFlow.asSharedFlow()
     
     fun addMessage(message: ChatMessage) {
-        Log.d("ChatRiskViewModel", "addMessage called: id=${message.id}, sender=${message.sender}")
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             try {
-                Log.d("ChatRiskViewModel", "Analyzing message: ${message.content.take(50)}")
-                val result = riskDetectionEngine.analyzeChatMessage(message)
-                Log.d("ChatRiskViewModel", "Risk detection result: level=${result.riskLevel}, reason=${result.riskReason}")
+                val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    riskDetectionEngine.analyzeChatMessage(message)
+                }
                 
                 val currentMessages = _uiState.value.messages
                 val updatedMessages = (currentMessages + message).let { messages ->
@@ -67,14 +66,11 @@ class ChatRiskViewModel(application: Application) : AndroidViewModel(application
                     riskLevels = updatedRiskLevels,
                     isLoading = false
                 )
-                Log.d("ChatRiskViewModel", "UI state updated: total messages=${updatedMessages.size}")
                 
                 if (result.riskLevel == RiskLevel.HIGH) {
-                    Log.d("ChatRiskViewModel", "Emitting high risk alert")
                     _riskAlertFlow.emit(result)
                 }
             } catch (e: Exception) {
-                Log.e("ChatRiskViewModel", "Error analyzing message: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = e.message

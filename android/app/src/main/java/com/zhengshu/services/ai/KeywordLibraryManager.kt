@@ -46,24 +46,19 @@ class KeywordLibraryManager(private val context: Context) {
         }
     }
     
-    suspend fun searchKeywords(text: String): List<KeywordMatch> = withContext(Dispatchers.IO) {
+    suspend fun searchKeywords(text: String): List<KeywordMatch> = withContext(Dispatchers.Default) {
         val matches = mutableListOf<KeywordMatch>()
         
-        Log.d("KeywordLibraryManager", "Searching keywords in text: ${text.take(100)}")
         val library = loadKeywords().getOrNull() ?: return@withContext matches
         
         library.categories.forEach { (categoryId, category) ->
             category.keywords.forEach { keyword ->
                 if (text.contains(keyword, ignoreCase = true)) {
-                    Log.d("KeywordLibraryManager", "Matched keyword: '$keyword' in category: ${category.name}, risk_level: ${category.risk_level}")
                     val riskLevel = when (category.risk_level) {
                         "HIGH" -> RiskLevel.HIGH
                         "MEDIUM" -> RiskLevel.MEDIUM
                         "LOW" -> RiskLevel.LOW
-                        else -> {
-                            Log.e("KeywordLibraryManager", "Unknown risk level: ${category.risk_level} for category: ${category.name}")
-                            RiskLevel.NONE
-                        }
+                        else -> RiskLevel.NONE
                     }
                     
                     matches.add(
@@ -78,7 +73,6 @@ class KeywordLibraryManager(private val context: Context) {
             }
         }
         
-        Log.d("KeywordLibraryManager", "Found ${matches.size} keyword matches")
         matches
     }
     

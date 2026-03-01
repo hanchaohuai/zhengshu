@@ -24,10 +24,12 @@ class ChatMonitorService : AccessibilityService() {
         
         private const val MAX_HISTORY_SIZE = 100
         private const val MAX_BUFFER_SIZE = 5000
-        private const val MAX_TRAVERSE_DEPTH = 20
+        private const val MAX_TRAVERSE_DEPTH = 10
+        private const val BUFFER_PROCESSING_INTERVAL = 500L
+        private const val MAX_TEXT_LENGTH = 800
     }
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
+    private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
     
     private var currentChatPackage: String? = null
     private var lastProcessedContent: String = ""
@@ -54,7 +56,7 @@ class ChatMonitorService : AccessibilityService() {
         processingJob = serviceScope.launch {
             while (isServiceRunning) {
                 try {
-                    delay(2000)
+                    delay(BUFFER_PROCESSING_INTERVAL)
                     processBufferedMessages()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in buffer processing: ${e.message}", e)
@@ -182,31 +184,32 @@ class ChatMonitorService : AccessibilityService() {
     }
     
     private fun traverseNode(node: AccessibilityNodeInfo, text: StringBuilder, depth: Int, maxDepth: Int) {
-        if (depth > maxDepth) {
+        if (depth > maxDepth || text.length > MAX_TEXT_LENGTH) {
             return
         }
         
         try {
             node.text?.toString()?.let { nodeText ->
-                if (nodeText.length > 1) {
+                if (nodeText.length > 1 && nodeText.length < 200) {
                     text.append(nodeText).append(" ")
                 }
             }
             
             node.contentDescription?.toString()?.let { descText ->
-                if (descText.length > 1) {
+                if (descText.length > 1 && descText.length < 200) {
                     text.append(descText).append(" ")
                 }
             }
             
-            for (i in 0 until node.childCount) {
+            val childCount = minOf(node.childCount, 15)
+            for (i in 0 until childCount) {
                 val child = node.getChild(i)
-                if (child != null) {
+                if (child != null && child.isVisibleToUser) {
                     traverseNode(child, text, depth + 1, maxDepth)
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error traversing node at depth $depth: ${e.message}")
+            Log.w(TAG, "Error traversing node at depth $depth: ${e.message}")
         }
     }
     
