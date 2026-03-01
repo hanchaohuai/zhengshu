@@ -103,9 +103,14 @@ class ChatMonitorService : AccessibilityService() {
                 val nodeInfo = rootInActiveWindow
                 if (nodeInfo != null) {
                     val textContent = extractTextFromNode(nodeInfo)
+                    Log.d(TAG, "Extracted text length: ${textContent.length}, isEmpty: ${textContent.isEmpty()}")
                     if (textContent.isNotEmpty() && textContent.length < 1000) {
                         processNewContent(textContent, packageName, "WindowStateChanged")
+                    } else {
+                        Log.w(TAG, "Text skipped: isEmpty=${textContent.isEmpty()}, length=${textContent.length}")
                     }
+                } else {
+                    Log.w(TAG, "rootInActiveWindow is null")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling window state changed: ${e.message}", e)
