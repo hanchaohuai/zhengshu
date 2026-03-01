@@ -25,6 +25,10 @@ data class ChatRiskUiState(
 
 class ChatRiskViewModel(application: Application) : AndroidViewModel(application) {
     
+    companion object {
+        private const val MAX_MESSAGES = 100
+    }
+    
     private val riskDetectionEngine = RiskDetectionEngine(application)
     
     private val _uiState = MutableStateFlow(ChatRiskUiState())
@@ -46,7 +50,14 @@ class ChatRiskViewModel(application: Application) : AndroidViewModel(application
                 val result = riskDetectionEngine.analyzeChatMessage(message)
                 Log.d("ChatRiskViewModel", "Risk detection result: level=${result.riskLevel}, reason=${result.riskReason}")
                 
-                val updatedMessages = _uiState.value.messages + message
+                val currentMessages = _uiState.value.messages
+                val updatedMessages = (currentMessages + message).let { messages ->
+                    if (messages.size > MAX_MESSAGES) {
+                        messages.drop(messages.size - MAX_MESSAGES)
+                    } else {
+                        messages
+                    }
+                }
                 val updatedRiskLevels = _uiState.value.riskLevels.toMutableMap().apply {
                     this[message.id] = result.riskLevel
                 }
@@ -77,7 +88,14 @@ class ChatRiskViewModel(application: Application) : AndroidViewModel(application
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             try {
-                val updatedMessages = _uiState.value.messages + messages
+                val currentMessages = _uiState.value.messages
+                val updatedMessages = (currentMessages + messages).let { msgs ->
+                    if (msgs.size > MAX_MESSAGES) {
+                        msgs.drop(msgs.size - MAX_MESSAGES)
+                    } else {
+                        msgs
+                    }
+                }
                 val updatedRiskLevels = _uiState.value.riskLevels.toMutableMap()
                 
                 messages.forEach { message ->

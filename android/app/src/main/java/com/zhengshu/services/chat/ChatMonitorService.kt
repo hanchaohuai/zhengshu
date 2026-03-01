@@ -21,6 +21,10 @@ class ChatMonitorService : AccessibilityService() {
             "com.tencent.mm",
             "com.tencent.mobileqq"
         )
+        
+        private const val MAX_HISTORY_SIZE = 100
+        private const val MAX_BUFFER_SIZE = 5000
+        private const val MAX_TRAVERSE_DEPTH = 20
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
@@ -33,15 +37,28 @@ class ChatMonitorService : AccessibilityService() {
     private val messageBuffer = StringBuilder()
     private var lastMessageHash: Int = 0
     
+    private var processingJob: Job? = null
+    private var isServiceRunning = false
+    
     override fun onServiceConnected() {
         super.onServiceConnected()
         Log.d(TAG, "ChatMonitorService connected")
         ChatMonitorManager.setServiceInstance(this)
         
-        serviceScope.launch {
-            while (true) {
-                delay(1000)
-                processBufferedMessages()
+        isServiceRunning = true
+        startBufferProcessing()
+    }
+    
+    private fun startBufferProcessing() {
+        processingJob?.cancel()
+        processingJob = serviceScope.launch {
+            while (isServiceRunning) {
+                try {
+                    delay(2000)
+                    processBufferedMessages()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in buffer processing: ${e.message}", e)
+                }
             }
         }
     }
@@ -51,57 +68,77 @@ class ChatMonitorService : AccessibilityService() {
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        try {
-            val packageName = event.packageName?.toString()
-            
-            if (packageName == null || !isSupportedPackage(packageName)) {
-                return
+        serviceScope.launch {
+            try {
+                val packageName = event.packageName?.toString()
+                
+                if (packageName == null || !isSupportedPackage(packageName)) {
+                    return@launch
+                }
+                
+                currentChatPackage = packageName
+                
+                when (event.eventType) {
+                    AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                        handleWindowStateChanged(event, packageName)
+                    }
+                    AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                        handleWindowContentChanged(event, packageName)
+                    }
+                    AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> {
+                        handleViewTextChanged(event, packageName)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing accessibility event: ${e.message}", e)
             }
-            
-            currentChatPackage = packageName
-            
-            when (event.eventType) {
-                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                    handleWindowStateChanged(event, packageName)
-                }
-                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                    handleWindowContentChanged(event, packageName)
-                }
-                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> {
-                    handleViewTextChanged(event, packageName)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error processing accessibility event: ${e.message}", e)
         }
     }
     
     private fun handleWindowStateChanged(event: AccessibilityEvent, packageName: String) {
         Log.d(TAG, "Window state changed: $packageName")
         
-        val nodeInfo = rootInActiveWindow
-        if (nodeInfo != null) {
-            val textContent = extractTextFromNode(nodeInfo)
-            if (textContent.isNotEmpty()) {
-                processNewContent(textContent, packageName, "WindowStateChanged")
+        serviceScope.launch {
+            try {
+                val nodeInfo = rootInActiveWindow
+                if (nodeInfo != null) {
+                    val textContent = extractTextFromNode(nodeInfo)
+                    if (textContent.isNotEmpty() && textContent.length < 1000) {
+                        processNewContent(textContent, packageName, "WindowStateChanged")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling window state changed: ${e.message}", e)
             }
         }
     }
     
     private fun handleWindowContentChanged(event: AccessibilityEvent, packageName: String) {
-        val nodeInfo = event.source ?: rootInActiveWindow
-        if (nodeInfo != null) {
-            val textContent = extractTextFromNode(nodeInfo)
-            if (textContent.isNotEmpty()) {
-                processNewContent(textContent, packageName, "ContentChanged")
+        serviceScope.launch {
+            try {
+                val nodeInfo = event.source ?: rootInActiveWindow
+                if (nodeInfo != null) {
+                    val textContent = extractTextFromNode(nodeInfo)
+                    if (textContent.isNotEmpty() && textContent.length < 1000) {
+                        processNewContent(textContent, packageName, "ContentChanged")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling window content changed: ${e.message}", e)
             }
         }
     }
     
     private fun handleViewTextChanged(event: AccessibilityEvent, packageName: String) {
-        val text = event.text?.joinToString(" ") ?: ""
-        if (text.isNotEmpty()) {
-            processNewContent(text, packageName, "ViewTextChanged")
+        serviceScope.launch {
+            try {
+                val text = event.text?.joinToString(" ") ?: ""
+                if (text.isNotEmpty() && text.length < 500) {
+                    processNewContent(text, packageName, "ViewTextChanged")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling view text changed: ${e.message}", e)
+            }
         }
     }
     
@@ -124,14 +161,18 @@ class ChatMonitorService : AccessibilityService() {
         Log.d(TAG, "New content from $source: ${content.take(50)}")
         
         if (isLikelyChatMessage(content)) {
-            messageBuffer.append(content).append("\n")
-            Log.d(TAG, "Added to buffer, buffer size: ${messageBuffer.length}")
+            if (messageBuffer.length < MAX_BUFFER_SIZE) {
+                messageBuffer.append(content).append("\n")
+                Log.d(TAG, "Added to buffer, buffer size: ${messageBuffer.length}")
+            } else {
+                Log.w(TAG, "Buffer full (${messageBuffer.length}), skipping content")
+            }
         }
     }
     
     private fun extractTextFromNode(node: AccessibilityNodeInfo): String {
         val result = StringBuilder()
-        traverseNode(node, result, 0, 100)
+        traverseNode(node, result, 0, MAX_TRAVERSE_DEPTH)
         return result.toString().trim()
     }
     
@@ -197,7 +238,14 @@ class ChatMonitorService : AccessibilityService() {
         Log.d(TAG, "Processing buffered messages: ${bufferedText.take(100)}")
         
         val chatMessage = createChatMessage(bufferedText)
-        messageHistory.add(chatMessage)
+        
+        synchronized(messageHistory) {
+            messageHistory.add(chatMessage)
+            if (messageHistory.size > MAX_HISTORY_SIZE) {
+                messageHistory.removeAt(0)
+                Log.d(TAG, "Removed old message, history size: ${messageHistory.size}")
+            }
+        }
         
         Log.d(TAG, "Created ChatMessage: id=${chatMessage.id}, sender=${chatMessage.sender}, content=${chatMessage.content.take(50)}")
         
@@ -267,6 +315,10 @@ class ChatMonitorService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "ChatMonitorService destroyed")
+        isServiceRunning = false
+        processingJob?.cancel()
+        messageBuffer.clear()
+        messageHistory.clear()
         serviceScope.cancel()
     }
 }
