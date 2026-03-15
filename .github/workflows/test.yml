@@ -1,0 +1,30 @@
+name: Test Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Check Gradle wrapper
+      run: |
+        cd android
+        ls -la
+        test -f gradlew && echo "Gradle wrapper exists" || echo "Gradle wrapper missing"
+        
+    - name: Check build files
+      run: |
+        cd android
+        ls -la app/build.gradle.kts
+        ls -la build.gradle.kts

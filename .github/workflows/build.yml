@@ -1,0 +1,70 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Download Gradle Wrapper
+      working-directory: ./android
+      run: |
+        mkdir -p gradle/wrapper
+        curl -L -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v7.5.1/gradle/wrapper/gradle-wrapper.jar
+        
+    - name: Build with Gradle
+      working-directory: ./android
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug assembleRelease --stacktrace --info --no-daemon 2>&1 | tee build.log
+        
+    - name: Upload build log
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: build-log
+        path: android/build.log
+        
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: app-debug
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+        
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: app-release
+        path: |
+          android/app/build/outputs/apk/release/app-release-unsigned.apk
+          android/app/build/outputs/apk/release/app-release.apk
+        retention-days: 30
+        if-no-files-found: warn
+        
+    - name: Build Summary
+      if: success()
+      run: |
+        echo "## 构建完成" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- Debug APK: 已上传" >> $GITHUB_STEP_SUMMARY
+        echo "- Release APK: 已上传 (未签名)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "下载位置: Actions → Artifacts" >> $GITHUB_STEP_SUMMARY
