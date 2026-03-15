@@ -119,7 +119,8 @@ class EvidenceStorageManager(
             oldEvidenceList.forEach { evidence ->
                 try {
                     val fileSize = File(evidence.filePath).length()
-                    deleteEvidence(evidence)
+                    repository.deleteEvidence(evidence)
+                    deleteEvidenceFiles(evidence)
                     deletedCount++
                     freedSpace += fileSize
                 } catch (e: Exception) {

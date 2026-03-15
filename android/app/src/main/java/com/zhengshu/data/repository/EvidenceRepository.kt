@@ -16,6 +16,9 @@ class EvidenceRepository(private val evidenceDao: EvidenceDao) {
     fun getEvidenceBySyncStatus(isSynced: Boolean): Flow<List<Evidence>> = 
         evidenceDao.getEvidenceBySyncStatus(isSynced)
     
+    fun getOldEvidence(timestamp: Long): Flow<List<Evidence>> = 
+        evidenceDao.getOldEvidence(timestamp)
+    
     suspend fun insertEvidence(evidence: Evidence): Long = 
         evidenceDao.insertEvidence(evidence)
     

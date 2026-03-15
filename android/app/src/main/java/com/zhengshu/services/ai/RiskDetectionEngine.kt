@@ -183,7 +183,7 @@ class RiskDetectionEngine(private val context: Context) {
     private fun analyzeTimePattern(timestamp: Long): RiskLevel {
         val hour = (timestamp / 3600000) % 24
         
-        return if (hour in 0..5 || hour == 23) {
+        return if (hour in 0..5 || hour == 23L) {
             RiskLevel.LOW
         } else {
             RiskLevel.NONE
